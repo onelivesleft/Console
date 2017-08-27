@@ -1,0 +1,112 @@
+console = {}
+
+console.command_char = '-'
+console.commands = {}
+console.command_list = {}
+console.validation_functions = {}
+console.command_color = {r = 0.8, g = 0.8, b = 0.8}
+console.output_color  = {r = 1.0, g = 1.0, b = 1.0}
+console.error_color   = {r = 1.0, g = 0.2, b = 0.2}
+
+function console.add_command(command, requires_admin, command_function)
+    local commands = console.commands
+    local command_list = console.command_list
+    console.commands[command] = {command_function=command_function, requires_admin=requires_admin}
+    table.insert(console.command_list, command)
+    table.sort(console.command_list)
+end
+
+function console.add_validation_function(validation_function)
+    table.insert(console.validation_functions, validation_function)
+end
+
+function console.split(text)
+    local parts = {}
+    if text ~= '' then
+        local looking_for = ' '
+        local adding = false
+        local part = ""
+        local totype = tonumber
+        for c = 1, string.len(text) do
+            local char = string.sub(text, c, c)
+            if adding then
+                if char == looking_for then -- ended current part
+                    if totype(part) ~= nil then
+                        table.insert(parts, totype(part))
+                    else
+                        table.insert(parts, part)
+                    end
+                    adding = false
+                    looking_for = ' '
+                    totype = tonumber
+                else
+                    part = part .. char
+                end
+            else
+                if char ~= looking_for then -- found start of part
+                    if char == "'" then
+                        looking_for = "'"
+                        totype = tostring
+                        part = ''
+                    elseif char == '"' then
+                        looking_for = '"'
+                        totype = tostring
+                        part = ''
+                    else
+                        part = char
+                    end
+                    adding = true
+                end
+            end
+        end
+        if totype(part) ~= nil then
+            table.insert(parts, totype(part))
+        else
+            table.insert(parts, part)
+        end
+    end
+    return parts
+end
+
+function console.display_commands(player)
+    printToColor('\nAvailable commands:', player.color, console.output_color)
+    local msg = ''
+    for i, command in ipairs(console.command_list) do
+        if i > 1 then msg = msg .. ',' end
+        if player.admin or not console.commands[command].requires_admin then
+            msg = msg .. ' ' .. console.command_char .. command
+        end
+    end
+    printToColor(msg, player.color, console.command_color)
+end
+
+function onChat(message, player)
+    if message ~= '' then
+        if string.sub(message, 1, 1) == console.command_char and string.len(message) > 1 and string.sub(message, 2, 2) ~= ' ' then -- command
+            local parts = console.split(string.sub(message, 2))
+            local command = parts[1]
+            local parameters = {}
+            if console.commands[command] and (player.admin or not console.commands[command].requires_admin) then
+                local command_function = console.commands[command].command_function
+                for i, parameter in ipairs(parts) do
+                    if i > 1 then table.insert(parameters, parameter) end
+                end
+                printToColor('\n'..message, player.color, console.command_color)
+                printToColor(command_function(unpack(parameters)), player.color, console.output_color)
+            else
+                printToColor('\n'..message, player.color, console.command_color)
+                console.display_commands(player)
+            end
+            return false
+        else
+            for i, f in ipairs(console.validation_functions) do
+                local valid, response = f(message)
+                if response == nil then response = '' end
+                if not valid then
+                    printToColor(response, player.color, console.error_color)
+                    return false
+                end
+            end
+        end
+    end
+end

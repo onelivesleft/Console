@@ -1,0 +1,49 @@
+#include !/console
+
+console.add_validation_function(function (message)
+    local message = message:lower()
+    for i, bad_word in pairs({'fuck', 'cunt'}) do
+        if message:find(bad_word) then
+            return false
+        end
+    end
+    return true
+end)
+
+console.builtin_globals = {}
+for global, _ in pairs(_G) do console.builtin_globals[global] = true end
+
+console.add_command('get', true, function (global_variable)
+    if global_variable then
+        if _G[global_variable] then
+            return global_variable .. ': ' .. _G[global_variable]
+        else
+            return 'Not found: ' .. global_variable
+        end
+    else
+        local globals = {}
+        for k, v in pairs(_G) do
+            if not console.builtin_globals[k] and type(v) ~= 'function' then
+                table.insert(globals, k)
+            end
+        end
+        table.sort(globals)
+        local text = 'Global Variables:'
+        for i, global in ipairs(globals) do
+            text = text .. '\n' .. global
+        end
+        return text
+    end
+end)
+
+console.add_command('set', true, function (global_variable, value)
+    if not global_variable then
+        return ''
+    end
+    if _G[global_variable] then
+        _G[global_variable] = value
+        return global_variable .. ': ' .. _G[global_variable]
+    else
+        return 'Not found: ' .. global_variable
+    end
+end)
