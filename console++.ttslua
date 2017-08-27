@@ -50,6 +50,7 @@ function console.node_from_path(path)
                 node = node[part]
                 depth = depth + 1
             else
+                table.insert(id, part)
                 found = false
                 break
             end
@@ -173,5 +174,99 @@ console.add_command('set', true,
             text = console.error_bb .. '<not found>[-]'
         end
         return text
+    end
+)
+
+console.add_command('toggle', true,
+    console.header_bb .. 'toggle <boolean>[-]\nToggles a boolean variable',
+    function (player, variable)
+        if variable == nil then
+            return console.error_bb .. '<you must supply variable>'
+        end
+        local variable = console.fill_path(variable)
+        local node, id, parent, found = console.node_from_path(variable)
+        local text = ''
+        if node ~= nil and found then
+            if type(node) == 'boolean' then
+                if node then
+                    parent[id] = false
+                    text = id .. ': ' .. console.value_bb .. 'false[-]'
+                else
+                    parent[id] = true
+                    text = id .. ': ' .. console.value_bb .. 'true[-]'
+                end
+            else
+                text = console.error_bb .. '<can only toggle a boolean>[-]'
+            end
+        else
+            text = console.error_bb .. '<not found>[-]'
+        end
+        return text
+    end
+)
+console.add_command('tgl', true, console.header_bb .. 'tgl <boolean>[-]\nToggles a boolean variable', 'toggle')
+
+console.add_command('rm', true,
+    console.header_bb .. 'rm <variable>[-]\nRemove variable',
+    function (player, variable)
+        if variable == nil then
+            return console.error_bb .. '<you must supply variable>'
+        end
+        local variable = console.fill_path(variable)
+        local node, id, parent, found = console.node_from_path(variable)
+        local text = ''
+        if node ~= nil and found then
+            parent[id] = nil
+            text = id .. " removed!"
+        else
+            text = console.error_bb .. '<not found>[-]'
+        end
+        return text
+    end
+)
+console.add_command('del', true, console.header_bb .. 'del <variable>[-]\nRemove variable', 'rm')
+
+console.add_command('add', true,
+    console.header_bb .. 'add <variable> [<value>|{}][-]\nCreate a variable set to value.  Use {} for value to make a table.',
+    function (player, variable, value)
+        if variable == nil then
+            return console.error_bb .. '<you must supply variable>[-]'
+        end
+        if value == nil then
+            return console.error_bb .. '<you must supply value>[-]'
+        end
+        local variable = console.fill_path(variable)
+        local node, id, parent, found = console.node_from_path(variable)
+        local text = ''
+        if found then
+            return console.error_bb .. '<already exists>[-]'
+        elseif node == nil or id == '' then
+            text = console.error_bb .. '<not found>[-]'
+        else
+            if value == '{}' then
+                node[id] = {}
+            else
+                node[id] = value
+            end
+            text = id .. " created!"
+        end
+        return text
+    end
+)
+
+
+console.add_command('shout', false,
+    console.header_bb .. 'shout <text>[-]\nBroadcast <text> to all players. Specify colour with {RRGGBB}.',
+    function (player, ...)
+        local text = player.steam_name .. ': '
+        local space = ''
+        for _, word in ipairs({...}) do
+            text = text .. space .. word
+            space = ' '
+        end
+        text = text:gsub('{','[')
+        text = text:gsub('}',']')
+        broadcastToAll(text, stringColorToRGB(player.color))
+        return nil, false
     end
 )

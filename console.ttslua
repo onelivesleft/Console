@@ -51,8 +51,12 @@ function onChat(message, player)
         local command_mode = console.in_command_mode[player.steam_id]
         if command_mode then
             command, command_function, parameters, requires_admin = console.get_command(message, player)
-        elseif message:sub(1, 1) == console.command_char and message:len() > 1 then
-            command, command_function, parameters, requires_admin = console.get_command(message:sub(2), player)
+        elseif message:sub(1, 1) == console.command_char then
+            if message:len() > 1 then
+                command, command_function, parameters, requires_admin = console.get_command(message:sub(2), player)
+            else
+                command, command_function, parameters, requires_admin = console.get_command(console.command_char, player)
+            end
         else
             for i, f in ipairs(console.validation_functions) do
                 local valid, response = f(message)
@@ -95,7 +99,7 @@ function console.get_command(message, player)
     for i, part in ipairs(console.split(message)) do
         if i == 1 then
             command_name = part
-            command = console.commands[command_name]
+            local command = console.commands[command_name]
             if command then
                 command_function = command.command_function
                 requires_admin = command.requires_admin
@@ -165,59 +169,65 @@ end
 
 -- Add basic built-in console commands
 
-console.add_command('help', false, console.header_bb..'help [<command>][-]\nDisplay available commands or help on specific command.',
+console.add_command('help', false, console.header_bb..'help [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.',
     function (player, command)
-        if command then
-            if console.commands[command] then
-                return console.commands[command].help_text
-            else
-                return console.error_bb .. "<command '" .. command .. "' not found>[-]"
-            end
+        if command and console.commands[command] then
+            return console.commands[command].help_text
+        elseif command and command ~= 'all' then
+            return console.error_bb .. "<command '" .. command .. "' not found>[-]"
         else
             local msg = console.header_bb .. 'Available commands:[-]'
             local command_list = {}
-            for command, _ in pairs(console.commands) do
-                if player.admin or not console.commands[command].requires_admin then
-                    table.insert(command_list, command)
+            for c, _ in pairs(console.commands) do
+                if player.admin or not console.commands[c].requires_admin then
+                    if command == 'all' then
+                        table.insert(command_list, console.commands[c].help_text)
+                    else
+                        table.insert(command_list, c)
+                    end
                 end
             end
             table.sort(command_list)
-            local sep = '\n'
-            for i, command in ipairs(command_list) do
-                msg = msg .. sep .. command
-                sep = ', '
+            local sep
+            if command == 'all' then
+                sep = '\n\n'
+            else
+                sep = '\n'
+            end
+            for i, c in ipairs(command_list) do
+                msg = msg .. sep .. c
+                if command ~= 'all' then sep = ', ' end
             end
             return msg
         end
     end
 )
-console.add_command('?', false, console.header_bb..'? [<command>][-]\nDisplay available commands or help on specific command.', 'help')
+console.add_command('?', false, console.header_bb..'? [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.', 'help')
 
 console.add_command("exit", false,
-    'Leave <command mode> (' .. console.command_char .. ' does the same).',
+    console.header_bb.."exit[-]\nLeave <command mode> ('" .. console.command_char .. "' does the same).",
     function (player)
         console.in_command_mode[player.steam_id] = nil
-        return '<command mode: off>'
+        return console.header_bb .. '<command mode: off>[-]'
     end
 )
 
 console.add_command('cmd', false,
-    'Enter <command mode> (' .. console.command_char .. console.command_char .. ' does the same).',
+    console.header_bb.."cmd[-]\nEnter <command mode> ('" .. console.command_char .. "' does the same).",
     function (player)
         console.in_command_mode[player.steam_id] = true
-        return '<command mode: on>'
+        return console.header_bb .. '<command mode: on>[-]'
     end
 )
 
 console.add_command(console.command_char, false,
-    'Toggle <command mode>',
+    console.header_bb..'>[-]\nToggle <command mode>',
     function (player)
         console.in_command_mode[player.steam_id] = not console.in_command_mode[player.steam_id]
         if console.in_command_mode[player.steam_id] then
-            return '<command mode: on>', true
+            return console.header_bb .. '<command mode: on>[-]', true
         else
-            return '<command mode: off>', true
+            return console.header_bb .. '<command mode: off>[-]', true
         end
     end
 )
-console.add_command(console.command_char..console.command_char, false, 'Toggle <command mode>', console.command_char)
