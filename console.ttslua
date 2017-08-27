@@ -1,29 +1,121 @@
 console = {}
 
-console.command_char = '-'
-console.commands = {}
-console.command_list = {}
-console.validation_functions = {}
-console.command_color = {r = 0.8, g = 0.8, b = 0.8}
-console.output_color  = {r = 1.0, g = 1.0, b = 1.0}
-console.error_color   = {r = 1.0, g = 0.2, b = 0.2}
+-- Change these values as you wish
+console.command_char = '>'
+console.prompt_color  = {r = 0.8, g = 1.0, b = 0.8}
+console.command_color = {r = 0.8, g = 0.6, b = 0.8}
+console.output_color  = {r = 0.9, g = 0.9, b = 0.9}
+console.invalid_color = {r = 1.0, g = 0.2, b = 0.2}
+console.header_bb     = '[EECCAA]'
+console.error_bb      = '[FFAAAA]'
 
-function console.add_command(command, requires_admin, command_function)
-    local commands = console.commands
-    local command_list = console.command_list
-    console.commands[command] = {command_function=command_function, requires_admin=requires_admin}
-    table.insert(console.command_list, command)
-    table.sort(console.command_list)
-end
+
+-- Exposed methods:
 
 function console.add_validation_function(validation_function)
+    -- Adds a validation function all chat will be checked against:
+    -- function(string message) which returns (boolean valid, string response)
+    -- If all validation functions return <valid> as true the message will be displayed.
+    -- If one returns <valid> as false then its <response> will be displayed to that player instead.
     table.insert(console.validation_functions, validation_function)
 end
 
-function console.split(text)
+function console.add_command(command, requires_admin, help_text, command_function)
+    -- Adds a command to the console.
+    -- command_function must take <player> as its first argument, and then any
+    --   subsequent arguments you wish which will be provided by the player.
+    -- You may alias an already-present command by calling this with command_function
+    --  set to the command string instead of a function.
+    -- See basic built-in commands at the bottom of this file for examples.
+    local commands = console.commands
+    local command_function = command_function
+    if type(command_function) == 'string' then --alias
+        command_function = commands[command_function].command_function
+    end
+    console.commands[command] = {command_function=command_function, requires_admin=requires_admin, help_text=help_text}
+end
+
+-- End of exposed methods.  You shouldn't need to interact with anything below (under normal circumstances)
+
+
+console.in_command_mode = {}
+console.commands = {}
+console.validation_functions = {}
+
+function onChat(message, player)
+    if message ~= '' then
+        local command = ''
+        local command_function = nil
+        local parameters = {player}
+        local requires_admin = false
+        local command_mode = console.in_command_mode[player.steam_id]
+        if command_mode then
+            command, command_function, parameters, requires_admin = console.get_command(message, player)
+        elseif message:sub(1, 1) == console.command_char and message:len() > 1 then
+            command, command_function, parameters, requires_admin = console.get_command(message:sub(2), player)
+        else
+            for i, f in ipairs(console.validation_functions) do
+                local valid, response = f(message)
+                if response == nil then response = '' end
+                if not valid then
+                    printToColor(response, player.color, console.invalid_color)
+                    return false
+                end
+            end
+            return true
+        end
+        if command_function and (player.admin or not requires_admin) then
+            local response, mute = command_function(unpack(parameters))
+            if response ~= nil or mute ~= nil then
+                if command_mode then
+                    message = console.command_char .. console.command_char .. message
+                end
+                if not mute then
+                    printToColor('\n'..message, player.color, console.command_color)
+                end
+                if response then
+                    printToColor(response, player.color, console.output_color)
+                end
+            end
+            if console.in_command_mode[player.steam_id] then console.display_prompt(player) end
+            return false
+        else
+            printToColor('\n'..message, player.color, console.command_color)
+            printToColor(console.error_bb .. "<command '" .. command .. "' not found>[-]", player.color, console.output_color)
+            return false
+        end
+    end
+end
+
+function console.get_command(message, player)
+    local command_name = ''
+    local command_function = nil
+    local requires_admin = false
+    local parameters = {player}
+    for i, part in ipairs(console.split(message)) do
+        if i == 1 then
+            command_name = part
+            command = console.commands[command_name]
+            if command then
+                command_function = command.command_function
+                requires_admin = command.requires_admin
+            end
+        else
+            table.insert(parameters, part)
+        end
+    end
+    return command_name, command_function, parameters, requires_admin
+end
+
+function console.display_prompt(player)
+    printToColor(console.command_char..console.command_char, player.color, console.prompt_color)
+end
+
+function console.split(text, split_on)
+    local split_on = split_on or ' '
     local parts = {}
     if text ~= '' then
-        local looking_for = ' '
+        local looking_for = split_on
         local adding = false
         local part = ""
         local totype = tonumber
@@ -37,7 +129,7 @@ function console.split(text)
                         table.insert(parts, part)
                     end
                     adding = false
-                    looking_for = ' '
+                    looking_for = split_on
                     totype = tonumber
                 else
                     part = part .. char
@@ -59,54 +151,73 @@ function console.split(text)
                 end
             end
         end
-        if totype(part) ~= nil then
-            table.insert(parts, totype(part))
-        else
-            table.insert(parts, part)
+        if adding then
+            if totype(part) ~= nil then
+                table.insert(parts, totype(part))
+            else
+                table.insert(parts, part)
+            end
         end
     end
     return parts
 end
 
-function console.display_commands(player)
-    printToColor('\nAvailable commands:', player.color, console.output_color)
-    local msg = ''
-    for i, command in ipairs(console.command_list) do
-        if i > 1 then msg = msg .. ',' end
-        if player.admin or not console.commands[command].requires_admin then
-            msg = msg .. ' ' .. console.command_char .. command
-        end
-    end
-    printToColor(msg, player.color, console.command_color)
-end
 
-function onChat(message, player)
-    if message ~= '' then
-        if string.sub(message, 1, 1) == console.command_char and string.len(message) > 1 and string.sub(message, 2, 2) ~= ' ' then -- command
-            local parts = console.split(string.sub(message, 2))
-            local command = parts[1]
-            local parameters = {}
-            if console.commands[command] and (player.admin or not console.commands[command].requires_admin) then
-                local command_function = console.commands[command].command_function
-                for i, parameter in ipairs(parts) do
-                    if i > 1 then table.insert(parameters, parameter) end
-                end
-                printToColor('\n'..message, player.color, console.command_color)
-                printToColor(command_function(unpack(parameters)), player.color, console.output_color)
+-- Add basic built-in console commands
+
+console.add_command('help', false, console.header_bb..'help [<command>][-]\nDisplay available commands or help on specific command.',
+    function (player, command)
+        if command then
+            if console.commands[command] then
+                return console.commands[command].help_text
             else
-                printToColor('\n'..message, player.color, console.command_color)
-                console.display_commands(player)
+                return console.error_bb .. "<command '" .. command .. "' not found>[-]"
             end
-            return false
         else
-            for i, f in ipairs(console.validation_functions) do
-                local valid, response = f(message)
-                if response == nil then response = '' end
-                if not valid then
-                    printToColor(response, player.color, console.error_color)
-                    return false
+            local msg = console.header_bb .. 'Available commands:[-]'
+            local command_list = {}
+            for command, _ in pairs(console.commands) do
+                if player.admin or not console.commands[command].requires_admin then
+                    table.insert(command_list, command)
                 end
             end
+            table.sort(command_list)
+            local sep = '\n'
+            for i, command in ipairs(command_list) do
+                msg = msg .. sep .. command
+                sep = ', '
+            end
+            return msg
         end
     end
-end
+)
+console.add_command('?', false, console.header_bb..'? [<command>][-]\nDisplay available commands or help on specific command.', 'help')
+
+console.add_command("exit", false,
+    'Leave <command mode> (' .. console.command_char .. ' does the same).',
+    function (player)
+        console.in_command_mode[player.steam_id] = nil
+        return '<command mode: off>'
+    end
+)
+
+console.add_command('cmd', false,
+    'Enter <command mode> (' .. console.command_char .. console.command_char .. ' does the same).',
+    function (player)
+        console.in_command_mode[player.steam_id] = true
+        return '<command mode: on>'
+    end
+)
+
+console.add_command(console.command_char, false,
+    'Toggle <command mode>',
+    function (player)
+        console.in_command_mode[player.steam_id] = not console.in_command_mode[player.steam_id]
+        if console.in_command_mode[player.steam_id] then
+            return '<command mode: on>', true
+        else
+            return '<command mode: off>', true
+        end
+    end
+)
+console.add_command(console.command_char..console.command_char, false, 'Toggle <command mode>', console.command_char)

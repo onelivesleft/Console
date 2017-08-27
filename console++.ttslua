@@ -1,49 +1,177 @@
-#include !/console
+#include console
+
+console.seperator = '/'
+console.cd = console.seperator
+console.value_bb = '[CCCCFF]'
+
+console.builtin_globals = {}
+for global, _ in pairs(_G) do console.builtin_globals[global] = true end
 
 console.add_validation_function(function (message)
     local message = message:lower()
     for i, bad_word in pairs({'fuck', 'cunt'}) do
         if message:find(bad_word) then
-            return false
+            return false, "No swearing!"
         end
     end
     return true
 end)
 
-console.builtin_globals = {}
-for global, _ in pairs(_G) do console.builtin_globals[global] = true end
-
-console.add_command('get', true, function (global_variable)
-    if global_variable then
-        if _G[global_variable] then
-            return global_variable .. ': ' .. _G[global_variable]
-        else
-            return 'Not found: ' .. global_variable
-        end
+function console.fill_path(path)
+    if path == nil then
+        return console.cd
+    elseif path:sub(1,1) == console.seperator then
+        return path
     else
-        local globals = {}
-        for k, v in pairs(_G) do
-            if not console.builtin_globals[k] and type(v) ~= 'function' then
-                table.insert(globals, k)
+        return console.cd .. path
+    end
+end
+
+function console.node_from_path(path)
+    local node = _G
+    local id = {''}
+    local parent = {nil}
+    local found = true
+    local depth = 0
+    local stack = {}
+    if path ~= console.seperator then
+        for i, part in ipairs(console.split(path, console.seperator)) do
+            if part == '..' then
+                if depth > 0 then
+                    node = table.remove(parent)
+                    table.remove(id)
+                    table.remove(stack)
+                    depth = depth - 1
+                end
+            elseif node[part] ~= nil then
+                table.insert(parent, node)
+                table.insert(id, part)
+                table.insert(stack, part)
+                node = node[part]
+                depth = depth + 1
+            else
+                found = false
+                break
             end
         end
-        table.sort(globals)
-        local text = 'Global Variables:'
-        for i, global in ipairs(globals) do
-            text = text .. '\n' .. global
+    end
+    path = console.seperator
+    for i, part in ipairs(stack) do
+        path = path .. part .. console.seperator
+    end
+    return node, table.remove(id), table.remove(parent), found, path
+end
+
+function console.display_prompt(player)
+    printToColor(console.cd .. ' ' .. console.command_char..console.command_char, player.color, console.prompt_color)
+end
+
+console.add_command('cd', true,
+    console.header_bb .. 'cd [<table>][-]\nDisplay current table or change current table',
+    function (player, path)
+        if path == nil then
+            return console.cd
+        end
+        local location = console.fill_path(path)
+        local node, id, parent, found, location = console.node_from_path(location)
+        local text = nil
+        if node ~= nil and found and type(node) == 'table' then
+            console.cd = location
+            if not console.in_command_mode[player.steam_id] then text = console.cd end
+        else
+            text = console.error_bb .. '<not found>[-]'
+        end
+        return text, false
+    end
+)
+
+console.add_command('ls', true,
+    console.header_bb .. 'ls [<table>][-]\nDisplay variables in current table or specified table',
+    function (player, path)
+        local path = path or console.cd
+        local location = console.fill_path(path)
+        local node, id, parent, found, location = console.node_from_path(location)
+        local text = ''
+        if node ~= nil and found then
+            if type(node) == 'table' then
+                local tables = {}
+                local entries = {}
+                for k, v in pairs(node) do
+                    if node ~= _G or not console.builtin_globals[k] then
+                        if type(v) == 'table' then
+                            table.insert(tables, console.header_bb .. k .. '[-]')
+                        elseif type(v) ~= 'function' then
+                            if type(v) == 'boolean' then
+                                if v then
+                                    v = 'true'
+                                else
+                                    v = 'false'
+                                end
+                            end
+                            table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
+                        end
+                    end
+                end
+                table.sort(tables)
+                table.sort(entries)
+                local cr = ''
+                for _, table in ipairs(tables) do
+                    text = text .. cr .. table .. console.seperator
+                    cr = '\n'
+                end
+                for _, entry in ipairs(entries) do
+                    text = text .. cr .. entry
+                    cr = '\n'
+                end
+            elseif type(node) == 'boolean' then
+                if node then
+                    text = id .. ': ' .. console.value_bb .. 'true[-]'
+                else
+                    text = id .. ': ' .. console.value_bb .. 'false[-]'
+                end
+            elseif type(node) ~= 'function' then
+                text = id .. ': ' .. console.value_bb .. node .. '[-]'
+            end
+        else
+            text = console.error_bb .. '<not found>[-]'
         end
         return text
     end
-end)
+)
+console.add_command('dir', true, console.header_bb .. 'dir [<table>][-]\nDisplay variables in current table or specified table', 'ls')
 
-console.add_command('set', true, function (global_variable, value)
-    if not global_variable then
-        return ''
+console.add_command('set', true,
+    console.header_bb .. 'set <variable> <value>[-]\nSet variable to value',
+    function (player, variable, value)
+        if variable == nil then
+            return console.error_bb .. '<you must supply variable and new value>'
+        end
+        if value == nil then
+            return console.error_bb .. '<you must supply new value>'
+        end
+        local variable = console.fill_path(variable)
+        local node, id, parent, found = console.node_from_path(variable)
+        local text = ''
+        if node ~= nil and found then
+            if type(node) == 'table' then
+                text = console.error_bb .. '<cannot set table>[-]'
+            elseif type(node) == 'function' then
+                text = console.error_bb .. '<cannot set function>[-]'
+            elseif type(node) == 'boolean' then
+                if not value or tostring(value):lower() == 'false' then
+                    parent[id] = false
+                    text = id .. ': ' .. console.value_bb .. 'false[-]'
+                else
+                    parent[id] = true
+                    text = id .. ': ' .. console.value_bb .. 'true[-]'
+                end
+            else
+                parent[id] = value
+                text = id .. ': ' .. console.value_bb .. parent[id] .. '[-]'
+            end
+        else
+            text = console.error_bb .. '<not found>[-]'
+        end
+        return text
     end
-    if _G[global_variable] then
-        _G[global_variable] = value
-        return global_variable .. ': ' .. _G[global_variable]
-    else
-        return 'Not found: ' .. global_variable
-    end
-end)
+)
