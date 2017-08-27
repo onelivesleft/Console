@@ -11,12 +11,24 @@ you can change this to w/e you want).  You can also add validation functions to 
 players are sending.  
 
 Built-in commands:
-* ```help/?```  lists available commands or provides information on specified command
-* ```cmd```     enter command mode: no longer required to type '>' before commands
-* ```exit```    exit command mode
-* ```>```       type this on its own to toggle command mode
+* ```help/?```  Lists available commands or provides information on specified command
+* ```cmd```     Enter command mode: no longer required to type '>' before commands
+* ```exit```    Exit command mode
+* ```>```       Type this on its own to toggle command mode
 
 console++.ttslua: ```#include Console/console++```
 Example module demonstrating how to use the base module, though this is a useful debug tool in its own 
 right and will become more feature-rich over time.  If you want to use this by copy-pasting it into your
 code then paste it below where you paste console.ttslua, and remove the #include line.
+
+The runtime envirorment is treated like a filesystem, allowing you to view and access global variables.
+Included commands:
+* ```cd```   Change the table you are currently located in.  
+* ```ls/dir```   List all tables and variables at your current location or location specfied.
+* ```set```  Set the variable specified to the value specified.
+* ```tgl/toggle``` Toggle the boolean variable specified.
+* ```rm/del```   Remove the variable specified.
+* ```add``` Add a variable or table
+* ```shout``` Broadcast a message to all players
+
+All commands except ```shout``` are locked to admin players only.
