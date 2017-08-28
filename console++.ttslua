@@ -2,6 +2,7 @@
 
 console.seperator = '/'
 console.option    = '-'
+console.wildcard  = '*'
 console.cd = console.seperator
 console.value_bb = '[CCCCFF]'
 
@@ -19,12 +20,41 @@ console.add_validation_function(function (message)
 end)
 
 function console.fill_path(path)
+    local path = path
+    local filter = nil
     if path == nil then
-        return console.cd
-    elseif path:sub(1,1) == console.seperator then
-        return path
+        return console.cd, filter
+    end
+    local c = path:len()
+    if path:sub(c) ~= console.seperator then
+        local found = false
+        while c > 0 do
+            local char = path:sub(c, c)
+            if char == console.wildcard then
+                found = true
+            elseif char == console.seperator then
+                break
+            end
+            c = c - 1
+        end
+        if found then
+            filter = '^'
+            for i = c + 1, path:len() do
+                local char = path:sub(i, i)
+                if char == console.wildcard then
+                    filter = filter .. '.*'
+                else
+                    filter = filter .. char
+                end
+            end
+            filter = filter .. '$'
+            path = path:sub(1, c)
+        end
+    end
+    if path:sub(1,1) == console.seperator then
+        return path, filter
     else
-        return console.cd .. path
+        return console.cd .. path, filter
     end
 end
 
@@ -88,7 +118,7 @@ console.add_command('cd', true,
 )
 
 console.add_command('ls', true,
-    console.header_bb .. 'ls [<table>][-]\nDisplay variables in current table or specified table',
+    console.header_bb .. 'ls [-?fotv] [<table>][-]\nDisplay variables in current table or specified table',
     function (player, ...)
         local path = console.cd
         local text = ''
@@ -109,6 +139,8 @@ console.add_command('ls', true,
                             display_variables = true
                         elseif option == 't' then
                             display_tables = true
+                        elseif option == '?' or option == 'h' then
+                            return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables'
                         else
                             text = text .. console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
                         end
@@ -125,14 +157,14 @@ console.add_command('ls', true,
         elseif not (display_functions or display_objects or display_variables) then
             display_variables = true
         end
-        local location = console.fill_path(path)
+        local location, filter = console.fill_path(path)
         local node, id, parent, found, location = console.node_from_path(location)
         if node ~= nil and found then
             if type(node) == 'table' then
                 local tables = {}
                 local entries = {}
                 for k, v in pairs(node) do
-                    if node ~= _G or not console.builtin_globals[k] then
+                    if (node ~= _G or not console.builtin_globals[k]) and (filter == nil or k:match(filter)) then
                         if type(v) == 'table' then
                             table.insert(tables, console.header_bb .. k .. '[-]')
                         else
