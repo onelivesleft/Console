@@ -3,9 +3,10 @@
 console.seperator = '/'
 console.option    = '-'
 console.wildcard  = '*'
-console.cd = console.seperator
+console.crop_string_at = 20
 console.value_bb = '[CCCCFF]'
 
+console.cd = console.seperator
 console.builtin_globals = {}
 for global, _ in pairs(_G) do console.builtin_globals[global] = true end
 
@@ -168,11 +169,13 @@ console.add_command('ls', true,
                         if type(v) == 'table' then
                             table.insert(tables, console.header_bb .. k .. '[-]')
                         else
-                            if type(v) == 'function' and not display_function then
-                                v = nil
+                            if type(v) == 'function' then
+                                if not display_function then
+                                    v = nil
+                                end
                             elseif type(v) == 'userdata' then
                                 if display_objects then
-                                    v = v.tag
+                                    v = v.tag .. ' ' .. v.getGUID()
                                 else
                                     v = nil
                                 end
@@ -184,6 +187,8 @@ console.add_command('ls', true,
                                 else
                                     v = 'false'
                                 end
+                            elseif type(v) == 'string' then
+                                if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
                             end
                             if v ~= nil then
                                 table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
@@ -191,8 +196,37 @@ console.add_command('ls', true,
                         end
                     end
                 end
-                table.sort(tables)
-                table.sort(entries)
+                local cmp = function (a, b)
+                    if not a then
+                        return true
+                    elseif not b then
+                        return false
+                    else
+                        local la = a:len()
+                        local lb = b:len()
+                        local c = 1
+                        repeat
+                            if c > la and c <= lb then
+                                return true
+                            elseif c > lb and c <= la then
+                                return false
+                            elseif c > la then
+                                return false
+                            else
+                                local ba = a:sub(c, c):byte()
+                                local bb = b:sub(c, c):byte()
+                                if ba < bb then
+                                    return true
+                                elseif bb < ba then
+                                    return false
+                                end
+                            end
+                            c = c + 1
+                        until false
+                    end
+                end
+                table.sort(tables, cmp)
+                table.sort(entries, cmp)
                 local cr = ''
                 for _, table in ipairs(tables) do
                     text = text .. cr .. table .. console.seperator
@@ -202,13 +236,17 @@ console.add_command('ls', true,
                     text = text .. cr .. entry
                     cr = '\n'
                 end
+            elseif type(node) == 'userdata' then
+                text = id .. ': ' .. console.value_bb .. node.tag .. ' ' .. node.getGUID() .. '[-]'
+            elseif type(node) == 'function' then
+                text = id .. ': ' .. console.value_bb .. node .. '[-]'
             elseif type(node) == 'boolean' then
                 if node then
                     text = id .. ': ' .. console.value_bb .. 'true[-]'
                 else
                     text = id .. ': ' .. console.value_bb .. 'false[-]'
                 end
-            elseif type(node) ~= 'function' then
+            else
                 text = id .. ': ' .. console.value_bb .. node .. '[-]'
             end
         else
