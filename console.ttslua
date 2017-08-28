@@ -251,7 +251,7 @@ console.add_command('cmd', false,
 )
 
 console.add_command(console.command_char, false,
-    console.header_bb..'>[-]\nToggle <command mode>',
+    console.header_bb..console.command_char..'[-]\nToggle <command mode>',
     function (player)
         console.in_command_mode[player.steam_id] = not console.in_command_mode[player.steam_id]
         if console.in_command_mode[player.steam_id] then
