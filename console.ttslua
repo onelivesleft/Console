@@ -47,6 +47,7 @@ end
 
 -- End of exposed methods.  You shouldn't need to interact with anything below (under normal circumstances)
 
+
 console.active = true
 console.in_command_mode = {}
 console.commands = {}
@@ -127,6 +128,14 @@ function console.display_prompt(player)
     printToColor(console.command_char..console.command_char, player.color, console.prompt_color)
 end
 
+function console.make_table(s)
+    if not s then
+        return nil
+    else
+        return dynamic.eval('{' .. s .. '}')
+    end
+end
+
 function console.split(text, split_on)
     local split_on = split_on or ' '
     local parts = {}
@@ -159,6 +168,10 @@ function console.split(text, split_on)
                     elseif char == '"' then
                         looking_for = '"'
                         totype = tostring
+                        part = ''
+                    elseif char == '{' then
+                        looking_for = '}'
+                        totype = console.make_table
                         part = ''
                     else
                         part = char

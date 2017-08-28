@@ -59,6 +59,10 @@ function console.is_hidden(label)
     return false
 end
 
+function console.escape_bb(s)
+    return s:gsub('[', '[ '):gsub(']', ' ]')
+end
+
 function console.fill_path(path)
     local path = path
     local filter = nil
@@ -244,7 +248,7 @@ function console.ls(player, path, filter, display_functions, display_objects, di
                                 if type(v) == 'string' then
                                     if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
                                 end
-                                table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
+                                table.insert(entries, k .. ': ' .. console.value_bb .. console.escape_bb(v) .. '[-]')
                             end
                         end
                     end
@@ -311,7 +315,7 @@ function console.ls(player, path, filter, display_functions, display_objects, di
                 text = id .. ': ' .. console.boolean_bb .. 'false[-]'
             end
         else
-            text = id .. ': ' .. console.value_bb .. node .. '[-]'
+            text = id .. ': ' .. console.value_bb .. console.escape_bb(node) .. '[-]'
         end
     else
         text = console.error_bb .. '<not found>[-]'
@@ -338,6 +342,7 @@ console.add_command('call', true,
         local node, id, parent, found, location = console.node_from_path(location)
         local text = nil
         if node ~= nil and found and type(node) == 'function' then
+            print(debug.getinfo(node))
             text = node(unpack(parameters))
         else
             text = console.error_bb .. '<not found>[-]'
