@@ -453,7 +453,7 @@ console.add_command('rm', true,
 console.add_command('del', true, console.header_bb .. 'del <variable>[-]\nRemove variable', 'rm')
 
 console.add_command('add', true,
-    console.header_bb .. "add <variable> [<value>|{}][-]\nCreate a variable set to value.   If no value specified then last value returned from 'call' is used.",
+    console.header_bb .. "add <variable> [<value>][-]\nCreate a variable set to value.   If no value specified then last value returned from 'call' is used.",
     function (player, variable, value)
         if variable == nil then
             return console.error_bb .. '<you must supply variable>[-]'
