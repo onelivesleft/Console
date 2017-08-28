@@ -20,19 +20,20 @@ function console.add_validation_function(validation_function)
     table.insert(console.validation_functions, validation_function)
 end
 
-function console.add_command(command, requires_admin, help_text, command_function)
+function console.add_command(command, requires_admin, help_text, command_function, default_parameters)
     -- Adds a command to the console.
     -- command_function must take <player> as its first argument, and then any
     --   subsequent arguments you wish which will be provided by the player.
     -- You may alias an already-present command by calling this with command_function
-    --  set to the command string instead of a function.
+    --  set to the command string instead of a function.  default_parameters can be set for an alias.
     -- See basic built-in commands at the bottom of this file for examples.
     local commands = console.commands
     local command_function = command_function
     if type(command_function) == 'string' then --alias
         command_function = commands[command_function].command_function
     end
-    console.commands[command] = {command_function=command_function, requires_admin=requires_admin, help_text=help_text}
+    console.commands[command] = {command_function=command_function, requires_admin=requires_admin,
+                                 help_text=help_text, default_parameters=default_parameters}
 end
 
 function console.disable()
@@ -116,6 +117,11 @@ function console.get_command(message, player)
             if command then
                 command_function = command.command_function
                 requires_admin = command.requires_admin
+                if command.default_parameters then
+                    for _, parameter in ipairs(command.default_parameters) do
+                        table.insert(parameters, parameter)
+                    end
+                end
             end
         else
             table.insert(parameters, part)
@@ -251,6 +257,40 @@ console.add_command(console.command_char, false,
             return console.header_bb .. '<command mode: on>[-]', true
         else
             return console.header_bb .. '<command mode: off>[-]', true
+        end
+    end
+)
+
+console.add_command('alias', false,
+    console.header_bb..'alias <alias> <command> [<parameter>...][-]\nCreate a command alias.',
+    function (player, ...)
+        local alias
+        local command
+        local parameters = {}
+        for i, arg in ipairs({...}) do
+            if i == 1 then
+                alias = arg
+            elseif i == 2 then
+                command = arg
+            else
+                table.insert(parameters, arg)
+            end
+        end
+        if not alias then
+            return console.error_bb .. '<must provide an alias>[-]'
+        elseif console.commands[alias] ~= nil then
+            return console.error_bb .. "<command '" .. alias .. "' already exists!>[-]"
+        elseif console.commands[command] == nil then
+            return console.error_bb .. "<command '" .. command .. "' does not exist>[-]"
+        else
+            local text = console.header_bb .. alias .. '[-] = ' .. command
+            local help_text = console.commands[command].help_text .. '\nAliased to: ' .. command
+            for _, parameter in ipairs(parameters) do
+                text = text .. ' ' .. parameter
+                help_text = help_text .. ' ' .. parameter
+            end
+            console.add_command(alias, console.commands[command].requires_admin, help_text, command, parameters)
+            return text
         end
     end
 )

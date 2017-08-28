@@ -181,6 +181,7 @@ console.add_command('cd', true,
         return text, false
     end
 )
+console.add_command('cd..', true, console.header_bb .. 'cd..[-]\nChange current table to parent table.', 'cd', {'..'})
 
 console.add_command('ls', true,
     console.header_bb .. 'ls [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table',
