@@ -120,11 +120,108 @@ console.add_command('cd', true,
     end
 )
 
+function console.ls(player, path, filter, display_functions, display_object, display_variables, display_tables, recursions_left)
+    local text = ''
+    local node, id, parent, found, path = console.node_from_path(path)
+    if node ~= nil and found then
+        if type(node) == 'table' then
+            local tables = {}
+            local entries = {}
+            for k, v in pairs(node) do
+                if (node ~= _G or not console.builtin_globals[k]) and (filter == nil or k:match(filter)) then
+                    if type(v) == 'table' then
+                        table.insert(tables, console.header_bb .. k .. '[-]')
+                    else
+                        if type(v) == 'function' then
+                            if not display_function then
+                                v = nil
+                            end
+                        elseif type(v) == 'userdata' then
+                            if display_objects then
+                                v = v.tag .. ' ' .. v.getGUID()
+                            else
+                                v = nil
+                            end
+                        elseif not display_variables then
+                            v = nil
+                        elseif type(v) == 'boolean' then
+                            if v then
+                                v = 'true'
+                            else
+                                v = 'false'
+                            end
+                        elseif type(v) == 'string' then
+                            if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
+                        end
+                        if v ~= nil then
+                            table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
+                        end
+                    end
+                end
+            end
+            local cmp = function (a, b)
+                if not a then
+                    return true
+                elseif not b then
+                    return false
+                else
+                    local la = a:len()
+                    local lb = b:len()
+                    local c = 1
+                    repeat
+                        if c > la and c <= lb then
+                            return true
+                        elseif c > lb and c <= la then
+                            return false
+                        elseif c > la then
+                            return false
+                        else
+                            local ba = a:sub(c, c):byte()
+                            local bb = b:sub(c, c):byte()
+                            if ba < bb then
+                                return true
+                            elseif bb < ba then
+                                return false
+                            end
+                        end
+                        c = c + 1
+                    until false
+                end
+            end
+            table.sort(tables, cmp)
+            table.sort(entries, cmp)
+            local cr = ''
+            for _, table in ipairs(tables) do
+                text = text .. cr .. table .. console.seperator
+                cr = '\n'
+            end
+            for _, entry in ipairs(entries) do
+                text = text .. cr .. entry
+                cr = '\n'
+            end
+        elseif type(node) == 'userdata' then
+            text = id .. ': ' .. console.value_bb .. node.tag .. ' ' .. node.getGUID() .. '[-]'
+        elseif type(node) == 'function' then
+            text = id .. ': ' .. console.value_bb .. node .. '[-]'
+        elseif type(node) == 'boolean' then
+            if node then
+                text = id .. ': ' .. console.value_bb .. 'true[-]'
+            else
+                text = id .. ': ' .. console.value_bb .. 'false[-]'
+            end
+        else
+            text = id .. ': ' .. console.value_bb .. node .. '[-]'
+        end
+    else
+        text = console.error_bb .. '<not found>[-]'
+    end
+    return text
+end
+
 console.add_command('ls', true,
-    console.header_bb .. 'ls [-?fotv] [<table>][-]\nDisplay variables in current table or specified table',
+    console.header_bb .. 'ls [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table',
     function (player, ...)
         local path = console.cd
-        local text = ''
         local display_functions = false
         local display_objects = false
         local display_variables = false
@@ -145,7 +242,7 @@ console.add_command('ls', true,
                         elseif option == '?' or option == 'h' then
                             return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables'
                         else
-                            text = text .. console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
+                            return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
                         end
                     end
                 end
@@ -161,103 +258,10 @@ console.add_command('ls', true,
             display_variables = true
         end
         local location, filter = console.fill_path(path)
-        local node, id, parent, found, location = console.node_from_path(location)
-        if node ~= nil and found then
-            if type(node) == 'table' then
-                local tables = {}
-                local entries = {}
-                for k, v in pairs(node) do
-                    if (node ~= _G or not console.builtin_globals[k]) and (filter == nil or k:match(filter)) then
-                        if type(v) == 'table' then
-                            table.insert(tables, console.header_bb .. k .. '[-]')
-                        else
-                            if type(v) == 'function' then
-                                if not display_function then
-                                    v = nil
-                                end
-                            elseif type(v) == 'userdata' then
-                                if display_objects then
-                                    v = v.tag .. ' ' .. v.getGUID()
-                                else
-                                    v = nil
-                                end
-                            elseif not display_variables then
-                                v = nil
-                            elseif type(v) == 'boolean' then
-                                if v then
-                                    v = 'true'
-                                else
-                                    v = 'false'
-                                end
-                            elseif type(v) == 'string' then
-                                if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
-                            end
-                            if v ~= nil then
-                                table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
-                            end
-                        end
-                    end
-                end
-                local cmp = function (a, b)
-                    if not a then
-                        return true
-                    elseif not b then
-                        return false
-                    else
-                        local la = a:len()
-                        local lb = b:len()
-                        local c = 1
-                        repeat
-                            if c > la and c <= lb then
-                                return true
-                            elseif c > lb and c <= la then
-                                return false
-                            elseif c > la then
-                                return false
-                            else
-                                local ba = a:sub(c, c):byte()
-                                local bb = b:sub(c, c):byte()
-                                if ba < bb then
-                                    return true
-                                elseif bb < ba then
-                                    return false
-                                end
-                            end
-                            c = c + 1
-                        until false
-                    end
-                end
-                table.sort(tables, cmp)
-                table.sort(entries, cmp)
-                local cr = ''
-                for _, table in ipairs(tables) do
-                    text = text .. cr .. table .. console.seperator
-                    cr = '\n'
-                end
-                for _, entry in ipairs(entries) do
-                    text = text .. cr .. entry
-                    cr = '\n'
-                end
-            elseif type(node) == 'userdata' then
-                text = id .. ': ' .. console.value_bb .. node.tag .. ' ' .. node.getGUID() .. '[-]'
-            elseif type(node) == 'function' then
-                text = id .. ': ' .. console.value_bb .. node .. '[-]'
-            elseif type(node) == 'boolean' then
-                if node then
-                    text = id .. ': ' .. console.value_bb .. 'true[-]'
-                else
-                    text = id .. ': ' .. console.value_bb .. 'false[-]'
-                end
-            else
-                text = id .. ': ' .. console.value_bb .. node .. '[-]'
-            end
-        else
-            text = console.error_bb .. '<not found>[-]'
-        end
-        return text
+        return console.ls(player, location, filter, display_functions, display_objects, display_variables, display_tables, 0)
     end
 )
-console.add_command('dir', true, console.header_bb .. 'dir [<table>][-]\nDisplay variables in current table or specified table', 'ls')
+console.add_command('dir', true, console.header_bb .. 'dir [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table', 'ls')
 
 console.add_command('set', true,
     console.header_bb .. 'set <variable> <value>[-]\nSet variable to value',

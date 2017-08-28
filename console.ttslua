@@ -123,8 +123,8 @@ function console.split(text, split_on)
         local adding = false
         local part = ""
         local totype = tonumber
-        for c = 1, string.len(text) do
-            local char = string.sub(text, c, c)
+        for c = 1, text:len() do
+            local char = text:sub(c, c)
             if adding then
                 if char == looking_for then -- ended current part
                     if totype(part) ~= nil then
