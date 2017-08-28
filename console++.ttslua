@@ -4,11 +4,15 @@ console.seperator = '/'
 console.option    = '-'
 console.wildcard  = '*'
 console.crop_string_at = 20
-console.value_bb = '[CCCCFF]'
+console.table_bb   = '[CCCC77]'
+console.hidden_bb  = '[DDAAAA]'
+console.value_bb   = '[88DD88]'
+console.boolean_bb = '[BBBBFF]'
 
 console.cd = console.seperator
 console.builtin_globals = {}
 for global, _ in pairs(_G) do console.builtin_globals[global] = true end
+console.hidden_globals = {}
 
 console.add_validation_function(function (message)
     local message = message:lower()
@@ -19,6 +23,38 @@ console.add_validation_function(function (message)
     end
     return true
 end)
+
+function console.hide_globals(label)
+    local hidden = {}
+    for global, _ in pairs(_G) do
+        if console.builtin_globals[global] == nil then
+            local found = false
+            for _, globals in pairs(console.hidden_globals) do
+                if globals[global] then
+                    found = true
+                    break
+                end
+            end
+            if not found then
+                hidden[global] = true
+            end
+        end
+    end
+    console.hidden_globals[label] = hidden
+end
+
+function console.is_hidden(label)
+    if console.builtin_globals[label] then
+        return true
+    else
+        for _, globals in pairs(console.hidden_globals) do
+            if globals[label] then
+                return true
+            end
+        end
+    end
+    return false
+end
 
 function console.fill_path(path)
     local path = path
@@ -66,6 +102,7 @@ function console.node_from_path(path)
     local found = true
     local depth = 0
     local stack = {}
+    local hidden = nil
     if path ~= console.seperator then
         for i, part in ipairs(console.split(path, console.seperator)) do
             if part == '..' then
@@ -76,13 +113,15 @@ function console.node_from_path(path)
                     depth = depth - 1
                 end
             elseif part == '.' then
-                -- do nothing, . = cd
+                -- do nothing, . = where we are
             elseif node[part] ~= nil then
                 table.insert(parent, node)
                 table.insert(id, part)
                 table.insert(stack, part)
                 node = node[part]
                 depth = depth + 1
+            elseif node == _G and console.hidden_globals[part] then
+                hidden = console.hidden_globals[part]
             else
                 table.insert(id, part)
                 found = false
@@ -94,7 +133,7 @@ function console.node_from_path(path)
     for i, part in ipairs(stack) do
         path = path .. part .. console.seperator
     end
-    return node, table.remove(id), table.remove(parent), found, path
+    return node, table.remove(id), table.remove(parent), found, path, hidden
 end
 
 function console.display_prompt(player)
@@ -122,15 +161,15 @@ console.add_command('cd', true,
 
 function console.ls(player, path, filter, display_functions, display_object, display_variables, display_tables, recursions_left)
     local text = ''
-    local node, id, parent, found, path = console.node_from_path(path)
-    if node ~= nil and found then
+    local node, id, parent, found, path, hidden = console.node_from_path(path)
+    if node ~= nil and (found or hidden) then
         if type(node) == 'table' then
             local tables = {}
             local entries = {}
             for k, v in pairs(node) do
-                if (node ~= _G or not console.builtin_globals[k]) and (filter == nil or k:match(filter)) then
+                if (node ~= _G or (not hidden and not console.is_hidden(k)) or (hidden and hidden[k])) and (filter == nil or k:match(filter)) then
                     if type(v) == 'table' then
-                        table.insert(tables, console.header_bb .. k .. '[-]')
+                        table.insert(tables, console.table_bb .. k .. '[-]')
                     else
                         if type(v) == 'function' then
                             if not display_function then
@@ -144,17 +183,20 @@ function console.ls(player, path, filter, display_functions, display_object, dis
                             end
                         elseif not display_variables then
                             v = nil
-                        elseif type(v) == 'boolean' then
-                            if v then
-                                v = 'true'
-                            else
-                                v = 'false'
-                            end
                         elseif type(v) == 'string' then
                             if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
                         end
                         if v ~= nil then
-                            table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
+                            if type(v) == 'boolean' then
+                                if v then
+                                    v = 'true'
+                                else
+                                    v = 'false'
+                                end
+                                table.insert(entries, k .. ': ' .. console.boolean_bb .. v .. '[-]')
+                            else
+                                table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
+                            end
                         end
                     end
                 end
@@ -195,6 +237,12 @@ function console.ls(player, path, filter, display_functions, display_object, dis
                 text = text .. cr .. table .. console.seperator
                 cr = '\n'
             end
+            if node == _G and not hidden then
+                for label, _ in pairs(console.hidden_globals) do
+                    text = text .. cr .. console.hidden_bb .. label .. '/[-]'
+                    cr = '\n'
+                end
+            end
             for _, entry in ipairs(entries) do
                 text = text .. cr .. entry
                 cr = '\n'
@@ -205,9 +253,9 @@ function console.ls(player, path, filter, display_functions, display_object, dis
             text = id .. ': ' .. console.value_bb .. node .. '[-]'
         elseif type(node) == 'boolean' then
             if node then
-                text = id .. ': ' .. console.value_bb .. 'true[-]'
+                text = id .. ': ' .. console.boolean_bb .. 'true[-]'
             else
-                text = id .. ': ' .. console.value_bb .. 'false[-]'
+                text = id .. ': ' .. console.boolean_bb .. 'false[-]'
             end
         else
             text = id .. ': ' .. console.value_bb .. node .. '[-]'
