@@ -135,6 +135,9 @@ function console.split(text, split_on)
     end
     local parts = {}
     if text ~= '' then
+        local make_table = function(s)
+            return console.split(s, {[' '] = true, [','] = true})
+        end
         local current_split_on = split_on
         local adding = false
         local part = ""
@@ -166,7 +169,7 @@ function console.split(text, split_on)
                         part = ''
                     elseif char == '{' then
                         current_split_on = {['}'] = true}
-                        totype = console.make_table
+                        totype = make_table
                         part = ''
                     else
                         part = char

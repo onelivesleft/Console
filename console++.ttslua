@@ -340,7 +340,7 @@ function console.ls(player, path, filter, display_functions, display_objects, di
 end
 
 console.add_command('call', true,
-    console.header_bb .. 'call <function> [<parameter>...][-]\nCall function with parameters',
+    console.header_bb .. 'call <function> [<parameter>...][-]\nCall function with parameters and display result.',
     function (player, ...)
         local path = nil
         local parameters = {}
@@ -358,8 +358,8 @@ console.add_command('call', true,
         local node, id, parent, found, location = console.node_from_path(location)
         local text = nil
         if node ~= nil and found and type(node) == 'function' then
-            print(debug.getinfo(node))
-            text = node(unpack(parameters))
+            console.returned_value = node(unpack(parameters))
+            text = tostring(console.returned_value)
         else
             text = console.error_bb .. '<not found>[-]'
         end
@@ -368,13 +368,13 @@ console.add_command('call', true,
 )
 
 console.add_command('set', true,
-    console.header_bb .. 'set <variable> <value>[-]\nSet variable to value',
+    console.header_bb .. "set <variable> [<value>][-]\nSet variable to value.  If no value specified then last value returned from 'call' is used.",
     function (player, variable, value)
         if variable == nil then
             return console.error_bb .. '<you must supply variable and new value>'
         end
         if value == nil then
-            return console.error_bb .. '<you must supply new value>'
+            value = console.returned_value
         end
         local variable = console.fill_path(variable)
         local node, id, parent, found = console.node_from_path(variable)
@@ -453,13 +453,13 @@ console.add_command('rm', true,
 console.add_command('del', true, console.header_bb .. 'del <variable>[-]\nRemove variable', 'rm')
 
 console.add_command('add', true,
-    console.header_bb .. 'add <variable> [<value>|{}][-]\nCreate a variable set to value.  Use {} for value to make a table.',
+    console.header_bb .. "add <variable> [<value>|{}][-]\nCreate a variable set to value.   If no value specified then last value returned from 'call' is used.",
     function (player, variable, value)
         if variable == nil then
             return console.error_bb .. '<you must supply variable>[-]'
         end
         if value == nil then
-            return console.error_bb .. '<you must supply value>[-]'
+            value = console.returned_value
         end
         local variable = console.fill_path(variable)
         local node, id, parent, found = console.node_from_path(variable)
