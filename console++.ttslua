@@ -1,6 +1,7 @@
 #include console
 
 console.seperator = '/'
+console.option    = '-'
 console.cd = console.seperator
 console.value_bb = '[CCCCFF]'
 
@@ -88,11 +89,44 @@ console.add_command('cd', true,
 
 console.add_command('ls', true,
     console.header_bb .. 'ls [<table>][-]\nDisplay variables in current table or specified table',
-    function (player, path)
-        local path = path or console.cd
+    function (player, ...)
+        local path = console.cd
+        local text = ''
+        local display_functions = false
+        local display_objects = false
+        local display_variables = false
+        local display_tables = false
+        for i, arg in ipairs({...}) do
+            if arg:sub(1,1) == console.option then
+                if arg:len() > 1 then
+                    for c = 2, arg:len() do
+                        local option = arg:sub(c,c)
+                        if option == 'f' then
+                            display_functions = true
+                        elseif option == 'o' then
+                            display_objects = true
+                        elseif option == 'v' then
+                            display_variables = true
+                        elseif option == 't' then
+                            display_tables = true
+                        else
+                            text = text .. console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
+                        end
+                    end
+                end
+            else
+                path = arg
+            end
+        end
+        if display_tables then
+            display_functions = false
+            display_objects = false
+            display_variables = false
+        elseif not (display_functions or display_objects or display_variables) then
+            display_variables = true
+        end
         local location = console.fill_path(path)
         local node, id, parent, found, location = console.node_from_path(location)
-        local text = ''
         if node ~= nil and found then
             if type(node) == 'table' then
                 local tables = {}
@@ -101,15 +135,27 @@ console.add_command('ls', true,
                     if node ~= _G or not console.builtin_globals[k] then
                         if type(v) == 'table' then
                             table.insert(tables, console.header_bb .. k .. '[-]')
-                        elseif type(v) ~= 'function' then
-                            if type(v) == 'boolean' then
+                        else
+                            if type(v) == 'function' and not display_function then
+                                v = nil
+                            elseif type(v) == 'userdata' then
+                                if display_objects then
+                                    v = v.tag
+                                else
+                                    v = nil
+                                end
+                            elseif not display_variables then
+                                v = nil
+                            elseif type(v) == 'boolean' then
                                 if v then
                                     v = 'true'
                                 else
                                     v = 'false'
                                 end
                             end
-                            table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
+                            if v ~= nil then
+                                table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
+                            end
                         end
                     end
                 end
