@@ -75,6 +75,8 @@ function console.node_from_path(path)
                     table.remove(stack)
                     depth = depth - 1
                 end
+            elseif part == '.' then
+                -- do nothing, . = cd
             elseif node[part] ~= nil then
                 table.insert(parent, node)
                 table.insert(id, part)
