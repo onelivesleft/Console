@@ -232,6 +232,7 @@ console.add_command('help', false, console.header_bb..'help [all|<command>][-]\n
     end
 )
 console.add_command('?', false, console.header_bb..'? [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.', 'help')
+console.add_command('info', false, console.header_bb..'info[-]\nDisplay help on all available commands.', 'help', {'all'})
 
 console.add_command("exit", false,
     console.header_bb.."exit[-]\nLeave <command mode> ('" .. console.command_char .. "' does the same).",

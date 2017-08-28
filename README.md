@@ -13,6 +13,7 @@ players are sending.
 
 Built-in commands:
 * ```help/?```  Lists available commands or provides information on specified command
+* ```info```    Displays help on all available commands.  Alias for 'help all'
 * ```alias```   Creates an alias of another command with preset parameters
 * ```cmd```     Enter command mode: no longer required to type '>' before commands
 * ```exit```    Exit command mode
@@ -20,7 +21,7 @@ Built-in commands:
 
 ### console++.ttslua
 ```#include Console/console++```
-Example module demonstrating how to use the base module, though this is a useful debug tool in its own 
+Example module demonstrating how to use the base module, though this is a useful debug tool in its own
 right and will become more feature-rich over time.  If you want to use this by copy-pasting it into your
 code then paste it below where you paste console.ttslua, and remove the #include line.
 
