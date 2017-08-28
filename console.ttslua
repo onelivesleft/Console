@@ -4,7 +4,7 @@ console = {}
 console.command_char = '>'
 console.prompt_color  = {r = 0.8,  g = 1.0,  b = 0.8 }
 console.command_color = {r = 0.8,  g = 0.6,  b = 0.8 }
-console.output_color  = {r = 0.85, g = 0.85, b = 0.85}
+console.output_color  = {r = 0.88, g = 0.88, b = 0.88}
 console.invalid_color = {r = 1.0,  g = 0.2,  b = 0.2 }
 console.header_bb     = '[EECCAA]'
 console.error_bb      = '[FF9999]'

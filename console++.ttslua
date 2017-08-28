@@ -4,10 +4,13 @@ console.seperator = '/'
 console.option    = '-'
 console.wildcard  = '*'
 console.crop_string_at = 20
-console.table_bb   = '[CCCC77]'
-console.hidden_bb  = '[DDAAAA]'
-console.value_bb   = '[88DD88]'
-console.boolean_bb = '[BBBBFF]'
+console.table_bb    = '[DDDD88]'
+console.hidden_bb   = '[DDAAAA]'
+console.function_bb = '[AADDAA]'
+console.value_bb    = '[88EE88]'
+console.boolean_bb  = '[CCCCFF]'
+console.object_bb   = '[CCBBCC]'
+console.guid_bb     = '[BBBBBB]'
 
 console.cd = console.seperator
 console.builtin_globals = {}
@@ -159,7 +162,55 @@ console.add_command('cd', true,
     end
 )
 
-function console.ls(player, path, filter, display_functions, display_object, display_variables, display_tables, recursions_left)
+console.add_command('ls', true,
+    console.header_bb .. 'ls [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table',
+    function (player, ...)
+        local path = console.cd
+        local display_functions = false
+        local display_objects = false
+        local display_variables = false
+        local display_tables = false
+        for i, arg in ipairs({...}) do
+            if arg:sub(1,1) == console.option then
+                if arg:len() > 1 then
+                    for c = 2, arg:len() do
+                        local option = arg:sub(c,c)
+                        if option == 'f' then
+                            display_functions = true
+                        elseif option == 'o' then
+                            display_objects = true
+                        elseif option == 'v' then
+                            display_variables = true
+                        elseif option == 't' then
+                            display_tables = true
+                        elseif option == '?' or option == 'h' then
+                            return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables'
+                        else
+                            return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
+                        end
+                    end
+                end
+            else
+                path = arg
+            end
+        end
+        local default_variables = not (display_tables or display_objects or display_functions or display_variables)
+        if display_functions or display_objects or display_variables then
+            display_tables = not display_tables
+        end
+        if default_variables then
+            display_functions = false
+            display_objects = false
+            display_variables = true
+            display_tables = true
+        end
+        local location, filter = console.fill_path(path)
+        return console.ls(player, location, filter, display_functions, display_objects, display_variables, display_tables, 0)
+    end
+)
+console.add_command('dir', true, console.header_bb .. 'dir [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table', 'ls')
+
+function console.ls(player, path, filter, display_functions, display_objects, display_variables, display_tables, recursions_left)
     local text = ''
     local node, id, parent, found, path, hidden = console.node_from_path(path)
     if node ~= nil and (found or hidden) then
@@ -172,21 +223,14 @@ function console.ls(player, path, filter, display_functions, display_object, dis
                         table.insert(tables, console.table_bb .. k .. '[-]')
                     else
                         if type(v) == 'function' then
-                            if not display_function then
-                                v = nil
+                            if display_functions then
+                                table.insert(entries, console.function_bb .. k .. '[-]()')
                             end
                         elseif type(v) == 'userdata' then
                             if display_objects then
-                                v = v.tag .. ' ' .. v.getGUID()
-                            else
-                                v = nil
+                                table.insert(entries, console.object_bb .. k .. '[-]: '  .. v.tag .. ' ' .. console.guid_bb .. '/' .. v.getGUID() .. '/[-]')
                             end
-                        elseif not display_variables then
-                            v = nil
-                        elseif type(v) == 'string' then
-                            if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
-                        end
-                        if v ~= nil then
+                        elseif display_variables then
                             if type(v) == 'boolean' then
                                 if v then
                                     v = 'true'
@@ -195,6 +239,9 @@ function console.ls(player, path, filter, display_functions, display_object, dis
                                 end
                                 table.insert(entries, k .. ': ' .. console.boolean_bb .. v .. '[-]')
                             else
+                                if type(v) == 'string' then
+                                    if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
+                                end
                                 table.insert(entries, k .. ': ' .. console.value_bb .. v .. '[-]')
                             end
                         end
@@ -233,14 +280,16 @@ function console.ls(player, path, filter, display_functions, display_object, dis
             table.sort(tables, cmp)
             table.sort(entries, cmp)
             local cr = ''
-            for _, table in ipairs(tables) do
-                text = text .. cr .. table .. console.seperator
-                cr = '\n'
-            end
-            if node == _G and not hidden then
-                for label, _ in pairs(console.hidden_globals) do
-                    text = text .. cr .. console.hidden_bb .. label .. '/[-]'
+            if display_tables then
+                for _, table in ipairs(tables) do
+                    text = text .. cr .. table .. console.seperator
                     cr = '\n'
+                end
+                if node == _G and not hidden then
+                    for label, _ in pairs(console.hidden_globals) do
+                        text = text .. cr .. console.hidden_bb .. label .. '/[-]'
+                        cr = '\n'
+                    end
                 end
             end
             for _, entry in ipairs(entries) do
@@ -250,7 +299,7 @@ function console.ls(player, path, filter, display_functions, display_object, dis
         elseif type(node) == 'userdata' then
             text = id .. ': ' .. console.value_bb .. node.tag .. ' ' .. node.getGUID() .. '[-]'
         elseif type(node) == 'function' then
-            text = id .. ': ' .. console.value_bb .. node .. '[-]'
+            text = console.function_bb .. id .. '[-]()'
         elseif type(node) == 'boolean' then
             if node then
                 text = id .. ': ' .. console.boolean_bb .. 'true[-]'
@@ -265,51 +314,6 @@ function console.ls(player, path, filter, display_functions, display_object, dis
     end
     return text
 end
-
-console.add_command('ls', true,
-    console.header_bb .. 'ls [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table',
-    function (player, ...)
-        local path = console.cd
-        local display_functions = false
-        local display_objects = false
-        local display_variables = false
-        local display_tables = false
-        for i, arg in ipairs({...}) do
-            if arg:sub(1,1) == console.option then
-                if arg:len() > 1 then
-                    for c = 2, arg:len() do
-                        local option = arg:sub(c,c)
-                        if option == 'f' then
-                            display_functions = true
-                        elseif option == 'o' then
-                            display_objects = true
-                        elseif option == 'v' then
-                            display_variables = true
-                        elseif option == 't' then
-                            display_tables = true
-                        elseif option == '?' or option == 'h' then
-                            return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables'
-                        else
-                            return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
-                        end
-                    end
-                end
-            else
-                path = arg
-            end
-        end
-        if display_tables then
-            display_functions = false
-            display_objects = false
-            display_variables = false
-        elseif not (display_functions or display_objects or display_variables) then
-            display_variables = true
-        end
-        local location, filter = console.fill_path(path)
-        return console.ls(player, location, filter, display_functions, display_objects, display_variables, display_tables, 0)
-    end
-)
-console.add_command('dir', true, console.header_bb .. 'dir [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table', 'ls')
 
 console.add_command('set', true,
     console.header_bb .. 'set <variable> <value>[-]\nSet variable to value',
