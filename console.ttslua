@@ -35,9 +35,19 @@ function console.add_command(command, requires_admin, help_text, command_functio
     console.commands[command] = {command_function=command_function, requires_admin=requires_admin, help_text=help_text}
 end
 
+function console.disable()
+    -- Disables console for command purposes, but leaves validation functions running
+    console.active = false
+end
+
+function console.enable()
+    -- Enables console commands (console commands are on by default)
+    console.active = true
+end
+
 -- End of exposed methods.  You shouldn't need to interact with anything below (under normal circumstances)
 
-
+console.active = true
 console.in_command_mode = {}
 console.commands = {}
 console.validation_functions = {}
@@ -49,9 +59,9 @@ function onChat(message, player)
         local parameters = {player}
         local requires_admin = false
         local command_mode = console.in_command_mode[player.steam_id]
-        if command_mode then
+        if command_mode and console.active then
             command, command_function, parameters, requires_admin = console.get_command(message, player)
-        elseif message:sub(1, 1) == console.command_char then
+        elseif message:sub(1, 1) == console.command_char and console.active then
             if message:len() > 1 then
                 command, command_function, parameters, requires_admin = console.get_command(message:sub(2), player)
             else
@@ -68,25 +78,27 @@ function onChat(message, player)
             end
             return true
         end
-        if command_function and (player.admin or not requires_admin) then
-            local response, mute = command_function(unpack(parameters))
-            if response ~= nil or mute ~= nil then
-                if command_mode then
-                    message = console.command_char .. console.command_char .. message
+        if console.active then
+            if command_function and (player.admin or not requires_admin) then
+                local response, mute = command_function(unpack(parameters))
+                if response ~= nil or mute ~= nil then
+                    if command_mode then
+                        message = console.command_char .. console.command_char .. message
+                    end
+                    if not mute then
+                        printToColor('\n'..message, player.color, console.command_color)
+                    end
+                    if response then
+                        printToColor(response, player.color, console.output_color)
+                    end
                 end
-                if not mute then
-                    printToColor('\n'..message, player.color, console.command_color)
-                end
-                if response then
-                    printToColor(response, player.color, console.output_color)
-                end
+                if console.in_command_mode[player.steam_id] then console.display_prompt(player) end
+                return false
+            else
+                printToColor('\n'..message, player.color, console.command_color)
+                printToColor(console.error_bb .. "<command '" .. command .. "' not found>[-]", player.color, console.output_color)
+                return false
             end
-            if console.in_command_mode[player.steam_id] then console.display_prompt(player) end
-            return false
-        else
-            printToColor('\n'..message, player.color, console.command_color)
-            printToColor(console.error_bb .. "<command '" .. command .. "' not found>[-]", player.color, console.output_color)
-            return false
         end
     end
 end
