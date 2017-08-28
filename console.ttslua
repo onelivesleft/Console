@@ -24,8 +24,8 @@ function console.add_command(command, requires_admin, help_text, command_functio
     -- Adds a command to the console.
     -- command_function must take <player> as its first argument, and then any
     --   subsequent arguments you wish which will be provided by the player.
-    -- You may alias an already-present command by calling this with command_function
-    --  set to the command string instead of a function.  default_parameters can be set for an alias.
+    -- You may alias an already-present command by calling this with command_function set to
+    --   the command string instead of a function.  default_parameters can be set for the alias.
     -- See basic built-in commands at the bottom of this file for examples.
     local commands = console.commands
     local command_function = command_function
