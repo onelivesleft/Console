@@ -4,7 +4,7 @@ console.seperator = '/'
 console.option    = '-'
 console.wildcard  = '*'
 console.crop_string_at = 20
-console.table_bb    = '[DDDD88]'
+console.table_bb    = '[EEDD88]'
 console.hidden_bb   = '[DDAAAA]'
 console.function_bb = '[AADDAA]'
 console.value_bb    = '[88EE88]'
@@ -228,7 +228,9 @@ function console.ls(player, path, filter, display_functions, display_objects, di
                             end
                         elseif type(v) == 'userdata' then
                             if display_objects then
-                                table.insert(entries, console.object_bb .. k .. '[-]: '  .. v.tag .. ' ' .. console.guid_bb .. '/' .. v.getGUID() .. '/[-]')
+                                local tag = 'null'
+                                if tostring(v) ~= 'null' then tag = v.tag end
+                                table.insert(entries, console.object_bb .. k .. '[-]: '  .. tag .. ' ' .. console.guid_bb .. '/' .. v.getGUID() .. '/[-]')
                             end
                         elseif display_variables then
                             if type(v) == 'boolean' then
@@ -287,8 +289,10 @@ function console.ls(player, path, filter, display_functions, display_objects, di
                 end
                 if node == _G and not hidden then
                     for label, _ in pairs(console.hidden_globals) do
-                        text = text .. cr .. console.hidden_bb .. label .. '/[-]'
-                        cr = '\n'
+                        if (filter == nil or label:match(filter)) then
+                            text = text .. cr .. console.hidden_bb .. label .. '/[-]'
+                            cr = '\n'
+                        end
                     end
                 end
             end
@@ -314,6 +318,33 @@ function console.ls(player, path, filter, display_functions, display_objects, di
     end
     return text
 end
+
+console.add_command('call', true,
+    console.header_bb .. 'call <function> [<parameter>...][-]\nCall function with parameters',
+    function (player, ...)
+        local path = nil
+        local parameters = {}
+        for i, arg in ipairs({...}) do
+            if i == 1 then
+                path = arg
+            else
+                table.insert(parameters, arg)
+            end
+        end
+        if path == nil then
+            return console.error_bb .. '<you must supply a function>[-]'
+        end
+        local location = console.fill_path(path)
+        local node, id, parent, found, location = console.node_from_path(location)
+        local text = nil
+        if node ~= nil and found and type(node) == 'function' then
+            text = node(unpack(parameters))
+        else
+            text = console.error_bb .. '<not found>[-]'
+        end
+        return text, false
+    end
+)
 
 console.add_command('set', true,
     console.header_bb .. 'set <variable> <value>[-]\nSet variable to value',
