@@ -60,7 +60,23 @@ function console.is_hidden(label)
 end
 
 function console.escape_bb(s)
-    return s:gsub('[', '[ '):gsub(']', ' ]')
+    local s = tostring(s)
+    if s == '' then
+        return ''
+    else
+        local r = ''
+        for c = 1, s:len() do
+            local char = s:sub(c, c)
+            if char == '[' then
+                r = r .. '[\u{200B}'
+            elseif char == ']' then
+                r = r .. '\u{200B}]'
+            else
+                r = r .. char
+            end
+        end
+        return r
+    end
 end
 
 function console.fill_path(path)

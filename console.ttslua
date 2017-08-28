@@ -128,49 +128,44 @@ function console.display_prompt(player)
     printToColor(console.command_char..console.command_char, player.color, console.prompt_color)
 end
 
-function console.make_table(s)
-    if not s then
-        return nil
-    else
-        return dynamic.eval('{' .. s .. '}')
-    end
-end
-
 function console.split(text, split_on)
     local split_on = split_on or ' '
+    if type(split_on) == 'string' then
+        split_on = {[split_on] = true}
+    end
     local parts = {}
     if text ~= '' then
-        local looking_for = split_on
+        local current_split_on = split_on
         local adding = false
         local part = ""
         local totype = tonumber
         for c = 1, text:len() do
             local char = text:sub(c, c)
             if adding then
-                if char == looking_for then -- ended current part
+                if current_split_on[char] then -- ended current part
                     if totype(part) ~= nil then
                         table.insert(parts, totype(part))
                     else
                         table.insert(parts, part)
                     end
                     adding = false
-                    looking_for = split_on
+                    current_split_on = split_on
                     totype = tonumber
                 else
                     part = part .. char
                 end
             else
-                if char ~= looking_for then -- found start of part
+                if not current_split_on[char] then -- found start of part
                     if char == "'" then
-                        looking_for = "'"
+                        current_split_on = {["'"] = true}
                         totype = tostring
                         part = ''
                     elseif char == '"' then
-                        looking_for = '"'
+                        current_split_on = {['"'] = true}
                         totype = tostring
                         part = ''
                     elseif char == '{' then
-                        looking_for = '}'
+                        current_split_on = {['}'] = true}
                         totype = console.make_table
                         part = ''
                     else
