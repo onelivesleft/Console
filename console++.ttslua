@@ -342,7 +342,7 @@ function console.ls(player, path, filter, display_functions, display_objects, di
                 if node == _G and not hidden then
                     for label, _ in pairs(console.hidden_globals) do
                         if (filter == nil or label:match(filter)) then
-                            text = text .. cr .. indent .. console.hidden_bb .. label .. '/[-]'
+                            text = text .. cr .. indent .. console.hidden_bb .. label .. console.seperator .. '[-]'
                             cr = '\n'
                         end
                     end
