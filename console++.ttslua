@@ -1,530 +1,534 @@
 #include console
 
-console.seperator = '/'
-console.option    = '-'
-console.wildcard  = '*'
-console.indent    = '  '
-console.crop_string_at = 20
-console.table_bb    = '[EEDD88]'
-console.hidden_bb   = '[DDAAAA]'
-console.function_bb = '[AADDAA]'
-console.value_bb    = '[88EE88]'
-console.boolean_bb  = '[CCCCFF]'
-console.object_bb   = '[CCBBCC]'
-console.guid_bb     = '[BBBBBB]'
+if not console.plusplus then
+    console.plusplus = true
 
-console.cd = console.seperator
-console.builtin_globals = {}
-for global, _ in pairs(_G) do console.builtin_globals[global] = true end
-console.hidden_globals = {}
+    console.seperator = '/'
+    console.option    = '-'
+    console.wildcard  = '*'
+    console.indent    = '  '
+    console.crop_string_at = 20
+    console.table_bb    = '[EEDD88]'
+    console.hidden_bb   = '[DDAAAA]'
+    console.function_bb = '[AADDAA]'
+    console.value_bb    = '[88EE88]'
+    console.boolean_bb  = '[CCCCFF]'
+    console.object_bb   = '[CCBBCC]'
+    console.guid_bb     = '[BBBBBB]'
 
-console.add_validation_function(function (message)
-    local message = message:lower()
-    for i, bad_word in pairs({'fuck', 'cunt'}) do
-        if message:find(bad_word) then
-            return false, "No swearing!"
+    console.cd = console.seperator
+    console.builtin_globals = {}
+    for global, _ in pairs(_G) do console.builtin_globals[global] = true end
+    console.hidden_globals = {}
+
+    console.add_validation_function(function (message)
+        local message = message:lower()
+        for i, bad_word in pairs({'fuck', 'cunt'}) do
+            if message:find(bad_word) then
+                return false, "No swearing!"
+            end
+        end
+        return true
+    end)
+
+    function console.hide_globals(label)
+        local hidden = {}
+        for global, _ in pairs(_G) do
+            if console.builtin_globals[global] == nil then
+                local found = false
+                for _, globals in pairs(console.hidden_globals) do
+                    if globals[global] then
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    hidden[global] = true
+                end
+            end
+        end
+        console.hidden_globals[label] = hidden
+    end
+
+    function console.is_hidden(label)
+        if console.builtin_globals[label] then
+            return true
+        else
+            for _, globals in pairs(console.hidden_globals) do
+                if globals[label] then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    function console.escape_bb(s)
+        local s = tostring(s)
+        if s == '' then
+            return ''
+        else
+            local r = ''
+            for c = 1, s:len() do
+                local char = s:sub(c, c)
+                if char == '[' then
+                    r = r .. '[\u{200B}'
+                elseif char == ']' then
+                    r = r .. '\u{200B}]'
+                else
+                    r = r .. char
+                end
+            end
+            return r
         end
     end
-    return true
-end)
 
-function console.hide_globals(label)
-    local hidden = {}
-    for global, _ in pairs(_G) do
-        if console.builtin_globals[global] == nil then
+    function console.fill_path(path)
+        local path = path
+        local filter = nil
+        if path == nil then
+            return console.cd, filter
+        end
+        local c = path:len()
+        if path:sub(c) ~= console.seperator then
             local found = false
-            for _, globals in pairs(console.hidden_globals) do
-                if globals[global] then
+            while c > 0 do
+                local char = path:sub(c, c)
+                if char == console.wildcard then
                     found = true
+                elseif char == console.seperator then
+                    break
+                end
+                c = c - 1
+            end
+            if found then
+                filter = '^'
+                for i = c + 1, path:len() do
+                    local char = path:sub(i, i)
+                    if char == console.wildcard then
+                        filter = filter .. '.*'
+                    else
+                        filter = filter .. char
+                    end
+                end
+                filter = filter .. '$'
+                path = path:sub(1, c)
+            end
+        end
+        if path:sub(1,1) == console.seperator then
+            return path, filter
+        else
+            return console.cd .. path, filter
+        end
+    end
+
+    function console.node_from_path(path)
+        local node = _G
+        local id = {''}
+        local parent = {nil}
+        local found = true
+        local depth = 0
+        local stack = {}
+        local hidden = nil
+        if path ~= console.seperator then
+            for i, part in ipairs(console.split(path, console.seperator)) do
+                if part == '..' then
+                    if depth > 0 then
+                        node = table.remove(parent)
+                        table.remove(id)
+                        table.remove(stack)
+                        depth = depth - 1
+                    end
+                elseif part == '.' then
+                    -- do nothing, . = where we are
+                elseif node[part] ~= nil then
+                    table.insert(parent, node)
+                    table.insert(id, part)
+                    table.insert(stack, part)
+                    node = node[part]
+                    depth = depth + 1
+                elseif node == _G and console.hidden_globals[part] then
+                    hidden = console.hidden_globals[part]
+                else
+                    table.insert(id, part)
+                    found = false
                     break
                 end
             end
-            if not found then
-                hidden[global] = true
-            end
         end
-    end
-    console.hidden_globals[label] = hidden
-end
-
-function console.is_hidden(label)
-    if console.builtin_globals[label] then
-        return true
-    else
-        for _, globals in pairs(console.hidden_globals) do
-            if globals[label] then
-                return true
-            end
+        path = console.seperator
+        for i, part in ipairs(stack) do
+            path = path .. part .. console.seperator
         end
+        return node, table.remove(id), table.remove(parent), found, path, hidden
     end
-    return false
-end
 
-function console.escape_bb(s)
-    local s = tostring(s)
-    if s == '' then
-        return ''
-    else
-        local r = ''
-        for c = 1, s:len() do
-            local char = s:sub(c, c)
-            if char == '[' then
-                r = r .. '[\u{200B}'
-            elseif char == ']' then
-                r = r .. '\u{200B}]'
+    function console.display_prompt(player)
+        printToColor(console.cd .. ' ' .. console.command_char..console.command_char, player.color, console.prompt_color)
+    end
+
+    console.add_command('cd', true,
+        console.header_bb .. 'cd [<table>][-]\nDisplay current table or change current table',
+        function (player, path)
+            if path == nil then
+                return console.cd
+            end
+            local location = console.fill_path(path)
+            local node, id, parent, found, location = console.node_from_path(location)
+            local text = nil
+            if node ~= nil and found and type(node) == 'table' then
+                console.cd = location
+                if not console.in_command_mode[player.steam_id] then text = console.cd end
             else
-                r = r .. char
+                text = console.error_bb .. '<not found>[-]'
             end
+            return text, false
         end
-        return r
-    end
-end
+    )
+    console.add_command('cd..', true, console.header_bb .. 'cd..[-]\nChange current table to parent table.', 'cd', {'..'})
 
-function console.fill_path(path)
-    local path = path
-    local filter = nil
-    if path == nil then
-        return console.cd, filter
-    end
-    local c = path:len()
-    if path:sub(c) ~= console.seperator then
-        local found = false
-        while c > 0 do
-            local char = path:sub(c, c)
-            if char == console.wildcard then
-                found = true
-            elseif char == console.seperator then
-                break
-            end
-            c = c - 1
-        end
-        if found then
-            filter = '^'
-            for i = c + 1, path:len() do
-                local char = path:sub(i, i)
-                if char == console.wildcard then
-                    filter = filter .. '.*'
-                else
-                    filter = filter .. char
-                end
-            end
-            filter = filter .. '$'
-            path = path:sub(1, c)
-        end
-    end
-    if path:sub(1,1) == console.seperator then
-        return path, filter
-    else
-        return console.cd .. path, filter
-    end
-end
-
-function console.node_from_path(path)
-    local node = _G
-    local id = {''}
-    local parent = {nil}
-    local found = true
-    local depth = 0
-    local stack = {}
-    local hidden = nil
-    if path ~= console.seperator then
-        for i, part in ipairs(console.split(path, console.seperator)) do
-            if part == '..' then
-                if depth > 0 then
-                    node = table.remove(parent)
-                    table.remove(id)
-                    table.remove(stack)
-                    depth = depth - 1
-                end
-            elseif part == '.' then
-                -- do nothing, . = where we are
-            elseif node[part] ~= nil then
-                table.insert(parent, node)
-                table.insert(id, part)
-                table.insert(stack, part)
-                node = node[part]
-                depth = depth + 1
-            elseif node == _G and console.hidden_globals[part] then
-                hidden = console.hidden_globals[part]
-            else
-                table.insert(id, part)
-                found = false
-                break
-            end
-        end
-    end
-    path = console.seperator
-    for i, part in ipairs(stack) do
-        path = path .. part .. console.seperator
-    end
-    return node, table.remove(id), table.remove(parent), found, path, hidden
-end
-
-function console.display_prompt(player)
-    printToColor(console.cd .. ' ' .. console.command_char..console.command_char, player.color, console.prompt_color)
-end
-
-console.add_command('cd', true,
-    console.header_bb .. 'cd [<table>][-]\nDisplay current table or change current table',
-    function (player, path)
-        if path == nil then
-            return console.cd
-        end
-        local location = console.fill_path(path)
-        local node, id, parent, found, location = console.node_from_path(location)
-        local text = nil
-        if node ~= nil and found and type(node) == 'table' then
-            console.cd = location
-            if not console.in_command_mode[player.steam_id] then text = console.cd end
-        else
-            text = console.error_bb .. '<not found>[-]'
-        end
-        return text, false
-    end
-)
-console.add_command('cd..', true, console.header_bb .. 'cd..[-]\nChange current table to parent table.', 'cd', {'..'})
-
-console.add_command('ls', true,
-    console.header_bb .. 'ls [' .. console.option .. '?fotv] [' .. console.option .. 'r[#]] [<table>][-]\nDisplay variables in current table or specified table',
-    function (player, ...)
-        local path = console.cd
-        local display_functions = false
-        local display_objects = false
-        local display_variables = false
-        local display_tables = false
-        local recursions_left = 0
-        for i, arg in ipairs({...}) do
-            if arg:sub(1,1) == console.option then
-                if arg:len() > 1 then
-                    local c = 2
-                    while c <= arg:len() do
-                        local option = arg:sub(c,c)
-                        if option == 'f' then
-                            display_functions = true
-                        elseif option == 'o' then
-                            display_objects = true
-                        elseif option == 'v' then
-                            display_variables = true
-                        elseif option == 't' then
-                            display_tables = true
-                        elseif option == 'r' then
-                            local n = ''
-                            local j = c + 1
-                            while j <= arg:len() do
-                                local char = arg:sub(j, j)
-                                if char:match('%d') then
-                                    n = n .. char
-                                else
-                                    break
+    console.add_command('ls', true,
+        console.header_bb .. 'ls [' .. console.option .. '?fotv] [' .. console.option .. 'r[#]] [<table>][-]\nDisplay variables in current table or specified table',
+        function (player, ...)
+            local path = console.cd
+            local display_functions = false
+            local display_objects = false
+            local display_variables = false
+            local display_tables = false
+            local recursions_left = 0
+            for i, arg in ipairs({...}) do
+                if arg:sub(1,1) == console.option then
+                    if arg:len() > 1 then
+                        local c = 2
+                        while c <= arg:len() do
+                            local option = arg:sub(c,c)
+                            if option == 'f' then
+                                display_functions = true
+                            elseif option == 'o' then
+                                display_objects = true
+                            elseif option == 'v' then
+                                display_variables = true
+                            elseif option == 't' then
+                                display_tables = true
+                            elseif option == 'r' then
+                                local n = ''
+                                local j = c + 1
+                                while j <= arg:len() do
+                                    local char = arg:sub(j, j)
+                                    if char:match('%d') then
+                                        n = n .. char
+                                    else
+                                        break
+                                    end
+                                    j = j + 1
                                 end
-                                j = j + 1
-                            end
-                            c = j - 1
-                            if n == '' then
-                                recursions_left = -1
+                                c = j - 1
+                                if n == '' then
+                                    recursions_left = -1
+                                else
+                                    recursions_left = tonumber(n)
+                                end
+                            elseif option == '?' or option == 'h' then
+                                return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables\n-r[#] recurse # deep'
                             else
-                                recursions_left = tonumber(n)
+                                return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
                             end
-                        elseif option == '?' or option == 'h' then
-                            return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables\n-r[#] recurse # deep'
-                        else
-                            return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
+                            c = c + 1
                         end
-                        c = c + 1
+                    end
+                else
+                    path = arg
+                end
+            end
+            local default_variables = not (display_tables or display_objects or display_functions or display_variables)
+            if display_functions or display_objects or display_variables then
+                display_tables = not display_tables
+            end
+            if default_variables then
+                display_functions = false
+                display_objects = false
+                display_variables = true
+                display_tables = true
+            end
+            local location, filter = console.fill_path(path)
+            return console.ls(player, location, filter, display_functions, display_objects, display_variables, display_tables, recursions_left)
+        end
+    )
+    console.add_command('dir', true, console.header_bb .. 'dir [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table', 'ls')
+
+    function console.ls(player, path, filter, display_functions, display_objects, display_variables, display_tables, recursions_left, indent)
+        local text = ''
+        local indent = indent or ''
+        local node, id, parent, found, location, hidden = console.node_from_path(path)
+        local paths = {}
+        if node ~= nil and (found or hidden) then
+            if type(node) == 'table' then
+                local tables = {}
+                local entries = {}
+                for k, v in pairs(node) do
+                    if (node ~= _G or (not hidden and not console.is_hidden(k)) or (hidden and hidden[k])) and (filter == nil or k:match(filter)) then
+                        if type(v) == 'table' then
+                            local t = console.table_bb .. k .. '[-]'
+                            table.insert(tables, t)
+                            paths[t] = path .. console.seperator .. k
+                        else
+                            if type(v) == 'function' then
+                                if display_functions then
+                                    table.insert(entries, console.function_bb .. k .. '[-]()')
+                                end
+                            elseif type(v) == 'userdata' then
+                                if display_objects then
+                                    local tag = 'null'
+                                    if tostring(v) ~= 'null' then tag = v.tag end
+                                    table.insert(entries, console.object_bb .. k .. '[-]: '  .. tag .. ' ' .. console.guid_bb .. '/' .. v.getGUID() .. '/[-]')
+                                end
+                            elseif display_variables then
+                                if type(v) == 'boolean' then
+                                    if v then
+                                        v = 'true'
+                                    else
+                                        v = 'false'
+                                    end
+                                    table.insert(entries, k .. ': ' .. console.boolean_bb .. v .. '[-]')
+                                else
+                                    if type(v) == 'string' then
+                                        if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
+                                    end
+                                    table.insert(entries, k .. ': ' .. console.value_bb .. console.escape_bb(v) .. '[-]')
+                                end
+                            end
+                        end
                     end
                 end
-            else
-                path = arg
-            end
-        end
-        local default_variables = not (display_tables or display_objects or display_functions or display_variables)
-        if display_functions or display_objects or display_variables then
-            display_tables = not display_tables
-        end
-        if default_variables then
-            display_functions = false
-            display_objects = false
-            display_variables = true
-            display_tables = true
-        end
-        local location, filter = console.fill_path(path)
-        return console.ls(player, location, filter, display_functions, display_objects, display_variables, display_tables, recursions_left)
-    end
-)
-console.add_command('dir', true, console.header_bb .. 'dir [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table', 'ls')
-
-function console.ls(player, path, filter, display_functions, display_objects, display_variables, display_tables, recursions_left, indent)
-    local text = ''
-    local indent = indent or ''
-    local node, id, parent, found, location, hidden = console.node_from_path(path)
-    local paths = {}
-    if node ~= nil and (found or hidden) then
-        if type(node) == 'table' then
-            local tables = {}
-            local entries = {}
-            for k, v in pairs(node) do
-                if (node ~= _G or (not hidden and not console.is_hidden(k)) or (hidden and hidden[k])) and (filter == nil or k:match(filter)) then
-                    if type(v) == 'table' then
-                        local t = console.table_bb .. k .. '[-]'
-                        table.insert(tables, t)
-                        paths[t] = path .. console.seperator .. k
+                local cmp = function (a, b)
+                    if not a then
+                        return true
+                    elseif not b then
+                        return false
                     else
-                        if type(v) == 'function' then
-                            if display_functions then
-                                table.insert(entries, console.function_bb .. k .. '[-]()')
-                            end
-                        elseif type(v) == 'userdata' then
-                            if display_objects then
-                                local tag = 'null'
-                                if tostring(v) ~= 'null' then tag = v.tag end
-                                table.insert(entries, console.object_bb .. k .. '[-]: '  .. tag .. ' ' .. console.guid_bb .. '/' .. v.getGUID() .. '/[-]')
-                            end
-                        elseif display_variables then
-                            if type(v) == 'boolean' then
-                                if v then
-                                    v = 'true'
-                                else
-                                    v = 'false'
-                                end
-                                table.insert(entries, k .. ': ' .. console.boolean_bb .. v .. '[-]')
-                            else
-                                if type(v) == 'string' then
-                                    if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
-                                end
-                                table.insert(entries, k .. ': ' .. console.value_bb .. console.escape_bb(v) .. '[-]')
-                            end
-                        end
-                    end
-                end
-            end
-            local cmp = function (a, b)
-                if not a then
-                    return true
-                elseif not b then
-                    return false
-                else
-                    local la = a:len()
-                    local lb = b:len()
-                    local c = 1
-                    repeat
-                        if c > la and c <= lb then
-                            return true
-                        elseif c > lb and c <= la then
-                            return false
-                        elseif c > la then
-                            return false
-                        else
-                            local ba = a:sub(c, c):byte()
-                            local bb = b:sub(c, c):byte()
-                            if ba < bb then
+                        local la = a:len()
+                        local lb = b:len()
+                        local c = 1
+                        repeat
+                            if c > la and c <= lb then
                                 return true
-                            elseif bb < ba then
+                            elseif c > lb and c <= la then
                                 return false
+                            elseif c > la then
+                                return false
+                            else
+                                local ba = a:sub(c, c):byte()
+                                local bb = b:sub(c, c):byte()
+                                if ba < bb then
+                                    return true
+                                elseif bb < ba then
+                                    return false
+                                end
+                            end
+                            c = c + 1
+                        until false
+                    end
+                end
+                table.sort(tables, cmp)
+                table.sort(entries, cmp)
+                local cr = ''
+                if display_tables then
+                    for i, t in ipairs(tables) do
+                        text = text .. cr .. indent .. t .. console.seperator
+                        if recursions_left ~= 0 then
+                            text = text .. '\n' .. console.ls(player, paths[t], filter,
+                                display_functions, display_objects, display_variables, display_tables,
+                                recursions_left-1, indent..console.indent)
+                        end
+                        cr = '\n'
+                    end
+                    if node == _G and not hidden then
+                        for label, _ in pairs(console.hidden_globals) do
+                            if (filter == nil or label:match(filter)) then
+                                text = text .. cr .. indent .. console.hidden_bb .. label .. console.seperator .. '[-]'
+                                cr = '\n'
                             end
                         end
-                        c = c + 1
-                    until false
-                end
-            end
-            table.sort(tables, cmp)
-            table.sort(entries, cmp)
-            local cr = ''
-            if display_tables then
-                for i, t in ipairs(tables) do
-                    text = text .. cr .. indent .. t .. console.seperator
-                    if recursions_left ~= 0 then
-                        text = text .. '\n' .. console.ls(player, paths[t], filter,
-                            display_functions, display_objects, display_variables, display_tables,
-                            recursions_left-1, indent..console.indent)
                     end
+                end
+                for _, entry in ipairs(entries) do
+                    text = text .. cr .. indent .. entry
                     cr = '\n'
                 end
-                if node == _G and not hidden then
-                    for label, _ in pairs(console.hidden_globals) do
-                        if (filter == nil or label:match(filter)) then
-                            text = text .. cr .. indent .. console.hidden_bb .. label .. console.seperator .. '[-]'
-                            cr = '\n'
-                        end
-                    end
-                end
-            end
-            for _, entry in ipairs(entries) do
-                text = text .. cr .. indent .. entry
-                cr = '\n'
-            end
-        elseif type(node) == 'userdata' then
-            text = indent .. id .. ': ' .. console.value_bb .. node.tag .. ' ' .. node.getGUID() .. '[-]'
-        elseif type(node) == 'function' then
-            text = indent .. console.function_bb .. id .. '[-]()'
-        elseif type(node) == 'boolean' then
-            if node then
-                text = indent .. id .. ': ' .. console.boolean_bb .. 'true[-]'
-            else
-                text = indent .. id .. ': ' .. console.boolean_bb .. 'false[-]'
-            end
-        else
-            text = indent .. id .. ': ' .. console.value_bb .. console.escape_bb(node) .. '[-]'
-        end
-    else
-        text = indent .. console.error_bb .. '<not found>[-]'
-    end
-    return text
-end
-
-console.add_command('call', true,
-    console.header_bb .. 'call <function> [<parameter>...][-]\nCall function with parameters and display result.',
-    function (player, ...)
-        local path = nil
-        local parameters = {}
-        for i, arg in ipairs({...}) do
-            if i == 1 then
-                path = arg
-            else
-                table.insert(parameters, arg)
-            end
-        end
-        if path == nil then
-            return console.error_bb .. '<you must supply a function>[-]'
-        end
-        local location = console.fill_path(path)
-        local node, id, parent, found, location = console.node_from_path(location)
-        local text = nil
-        if node ~= nil and found and type(node) == 'function' then
-            console.returned_value = node(unpack(parameters))
-            text = tostring(console.returned_value)
-        else
-            text = console.error_bb .. '<not found>[-]'
-        end
-        return text, false
-    end
-)
-
-console.add_command('set', true,
-    console.header_bb .. "set <variable> [<value>][-]\nSet variable to value.  If no value specified then last value returned from 'call' is used.",
-    function (player, variable, value)
-        if variable == nil then
-            return console.error_bb .. '<you must supply variable and new value>'
-        end
-        if value == nil then
-            value = console.returned_value
-        end
-        local variable = console.fill_path(variable)
-        local node, id, parent, found = console.node_from_path(variable)
-        local text = ''
-        if node ~= nil and found then
-            if type(node) == 'table' then
-                text = console.error_bb .. '<cannot set table>[-]'
+            elseif type(node) == 'userdata' then
+                text = indent .. id .. ': ' .. console.value_bb .. node.tag .. ' ' .. node.getGUID() .. '[-]'
             elseif type(node) == 'function' then
-                text = console.error_bb .. '<cannot set function>[-]'
+                text = indent .. console.function_bb .. id .. '[-]()'
             elseif type(node) == 'boolean' then
-                if not value or tostring(value):lower() == 'false' then
-                    parent[id] = false
-                    text = id .. ': ' .. console.value_bb .. 'false[-]'
-                else
-                    parent[id] = true
-                    text = id .. ': ' .. console.value_bb .. 'true[-]'
-                end
-            else
-                parent[id] = value
-                text = id .. ': ' .. console.value_bb .. parent[id] .. '[-]'
-            end
-        else
-            text = console.error_bb .. '<not found>[-]'
-        end
-        return text
-    end
-)
-
-console.add_command('toggle', true,
-    console.header_bb .. 'toggle <boolean>[-]\nToggles a boolean variable',
-    function (player, variable)
-        if variable == nil then
-            return console.error_bb .. '<you must supply variable>'
-        end
-        local variable = console.fill_path(variable)
-        local node, id, parent, found = console.node_from_path(variable)
-        local text = ''
-        if node ~= nil and found then
-            if type(node) == 'boolean' then
                 if node then
-                    parent[id] = false
-                    text = id .. ': ' .. console.value_bb .. 'false[-]'
+                    text = indent .. id .. ': ' .. console.boolean_bb .. 'true[-]'
                 else
-                    parent[id] = true
-                    text = id .. ': ' .. console.value_bb .. 'true[-]'
+                    text = indent .. id .. ': ' .. console.boolean_bb .. 'false[-]'
                 end
             else
-                text = console.error_bb .. '<can only toggle a boolean>[-]'
+                text = indent .. id .. ': ' .. console.value_bb .. console.escape_bb(node) .. '[-]'
             end
         else
-            text = console.error_bb .. '<not found>[-]'
+            text = indent .. console.error_bb .. '<not found>[-]'
         end
         return text
     end
-)
-console.add_command('tgl', true, console.header_bb .. 'tgl <boolean>[-]\nToggles a boolean variable', 'toggle')
 
-console.add_command('rm', true,
-    console.header_bb .. 'rm <variable>[-]\nRemove variable',
-    function (player, variable)
-        if variable == nil then
-            return console.error_bb .. '<you must supply variable>'
-        end
-        local variable = console.fill_path(variable)
-        local node, id, parent, found = console.node_from_path(variable)
-        local text = ''
-        if node ~= nil and found then
-            parent[id] = nil
-            text = id .. " removed!"
-        else
-            text = console.error_bb .. '<not found>[-]'
-        end
-        return text
-    end
-)
-console.add_command('del', true, console.header_bb .. 'del <variable>[-]\nRemove variable', 'rm')
-
-console.add_command('add', true,
-    console.header_bb .. "add <variable> [<value>][-]\nCreate a variable set to value.   If no value specified then last value returned from 'call' is used.",
-    function (player, variable, value)
-        if variable == nil then
-            return console.error_bb .. '<you must supply variable>[-]'
-        end
-        if value == nil then
-            value = console.returned_value
-        end
-        local variable = console.fill_path(variable)
-        local node, id, parent, found = console.node_from_path(variable)
-        local text = ''
-        if found then
-            return console.error_bb .. '<already exists>[-]'
-        elseif node == nil or id == '' then
-            text = console.error_bb .. '<not found>[-]'
-        else
-            if value == '{}' then
-                node[id] = {}
+    console.add_command('call', true,
+        console.header_bb .. 'call <function> [<parameter>...][-]\nCall function with parameters and display result.',
+        function (player, ...)
+            local path = nil
+            local parameters = {}
+            for i, arg in ipairs({...}) do
+                if i == 1 then
+                    path = arg
+                else
+                    table.insert(parameters, arg)
+                end
+            end
+            if path == nil then
+                return console.error_bb .. '<you must supply a function>[-]'
+            end
+            local location = console.fill_path(path)
+            local node, id, parent, found, location = console.node_from_path(location)
+            local text = nil
+            if node ~= nil and found and type(node) == 'function' then
+                console.returned_value = node(unpack(parameters))
+                text = tostring(console.returned_value)
             else
-                node[id] = value
+                text = console.error_bb .. '<not found>[-]'
             end
-            text = id .. " created!"
+            return text, false
         end
-        return text
-    end
-)
+    )
+
+    console.add_command('set', true,
+        console.header_bb .. "set <variable> [<value>][-]\nSet variable to value.  If no value specified then last value returned from 'call' is used.",
+        function (player, variable, value)
+            if variable == nil then
+                return console.error_bb .. '<you must supply variable and new value>'
+            end
+            if value == nil then
+                value = console.returned_value
+            end
+            local variable = console.fill_path(variable)
+            local node, id, parent, found = console.node_from_path(variable)
+            local text = ''
+            if node ~= nil and found then
+                if type(node) == 'table' then
+                    text = console.error_bb .. '<cannot set table>[-]'
+                elseif type(node) == 'function' then
+                    text = console.error_bb .. '<cannot set function>[-]'
+                elseif type(node) == 'boolean' then
+                    if not value or tostring(value):lower() == 'false' then
+                        parent[id] = false
+                        text = id .. ': ' .. console.value_bb .. 'false[-]'
+                    else
+                        parent[id] = true
+                        text = id .. ': ' .. console.value_bb .. 'true[-]'
+                    end
+                else
+                    parent[id] = value
+                    text = id .. ': ' .. console.value_bb .. parent[id] .. '[-]'
+                end
+            else
+                text = console.error_bb .. '<not found>[-]'
+            end
+            return text
+        end
+    )
+
+    console.add_command('toggle', true,
+        console.header_bb .. 'toggle <boolean>[-]\nToggles a boolean variable',
+        function (player, variable)
+            if variable == nil then
+                return console.error_bb .. '<you must supply variable>'
+            end
+            local variable = console.fill_path(variable)
+            local node, id, parent, found = console.node_from_path(variable)
+            local text = ''
+            if node ~= nil and found then
+                if type(node) == 'boolean' then
+                    if node then
+                        parent[id] = false
+                        text = id .. ': ' .. console.value_bb .. 'false[-]'
+                    else
+                        parent[id] = true
+                        text = id .. ': ' .. console.value_bb .. 'true[-]'
+                    end
+                else
+                    text = console.error_bb .. '<can only toggle a boolean>[-]'
+                end
+            else
+                text = console.error_bb .. '<not found>[-]'
+            end
+            return text
+        end
+    )
+    console.add_command('tgl', true, console.header_bb .. 'tgl <boolean>[-]\nToggles a boolean variable', 'toggle')
+
+    console.add_command('rm', true,
+        console.header_bb .. 'rm <variable>[-]\nRemove variable',
+        function (player, variable)
+            if variable == nil then
+                return console.error_bb .. '<you must supply variable>'
+            end
+            local variable = console.fill_path(variable)
+            local node, id, parent, found = console.node_from_path(variable)
+            local text = ''
+            if node ~= nil and found then
+                parent[id] = nil
+                text = id .. " removed!"
+            else
+                text = console.error_bb .. '<not found>[-]'
+            end
+            return text
+        end
+    )
+    console.add_command('del', true, console.header_bb .. 'del <variable>[-]\nRemove variable', 'rm')
+
+    console.add_command('add', true,
+        console.header_bb .. "add <variable> [<value>][-]\nCreate a variable set to value.   If no value specified then last value returned from 'call' is used.",
+        function (player, variable, value)
+            if variable == nil then
+                return console.error_bb .. '<you must supply variable>[-]'
+            end
+            if value == nil then
+                value = console.returned_value
+            end
+            local variable = console.fill_path(variable)
+            local node, id, parent, found = console.node_from_path(variable)
+            local text = ''
+            if found then
+                return console.error_bb .. '<already exists>[-]'
+            elseif node == nil or id == '' then
+                text = console.error_bb .. '<not found>[-]'
+            else
+                if value == '{}' then
+                    node[id] = {}
+                else
+                    node[id] = value
+                end
+                text = id .. " created!"
+            end
+            return text
+        end
+    )
 
 
-console.add_command('shout', false,
-    console.header_bb .. 'shout <text>[-]\nBroadcast <text> to all players. Specify colour with {RRGGBB}.',
-    function (player, ...)
-        local text = player.steam_name .. ': '
-        local space = ''
-        for _, word in ipairs({...}) do
-            text = text .. space .. word
-            space = ' '
+    console.add_command('shout', false,
+        console.header_bb .. 'shout <text>[-]\nBroadcast <text> to all players. Specify colour with {RRGGBB}.',
+        function (player, ...)
+            local text = player.steam_name .. ': '
+            local space = ''
+            for _, word in ipairs({...}) do
+                text = text .. space .. word
+                space = ' '
+            end
+            text = text:gsub('{','[')
+            text = text:gsub('}',']')
+            broadcastToAll(text, stringColorToRGB(player.color))
+            return nil, false
         end
-        text = text:gsub('{','[')
-        text = text:gsub('}',']')
-        broadcastToAll(text, stringColorToRGB(player.color))
-        return nil, false
-    end
-)
+    )
+end

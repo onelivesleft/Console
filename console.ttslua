@@ -1,297 +1,299 @@
-console = {}
+if not console then
+    console = {}
 
--- Change these values as you wish
-console.command_char = '>'
-console.prompt_color  = {r = 0.8,  g = 1.0,  b = 0.8 }
-console.command_color = {r = 0.8,  g = 0.6,  b = 0.8 }
-console.output_color  = {r = 0.88, g = 0.88, b = 0.88}
-console.invalid_color = {r = 1.0,  g = 0.2,  b = 0.2 }
-console.header_bb     = '[EECCAA]'
-console.error_bb      = '[FF9999]'
+    -- Change these values as you wish
+    console.command_char = '>'
+    console.prompt_color  = {r = 0.8,  g = 1.0,  b = 0.8 }
+    console.command_color = {r = 0.8,  g = 0.6,  b = 0.8 }
+    console.output_color  = {r = 0.88, g = 0.88, b = 0.88}
+    console.invalid_color = {r = 1.0,  g = 0.2,  b = 0.2 }
+    console.header_bb     = '[EECCAA]'
+    console.error_bb      = '[FF9999]'
 
 
--- Exposed methods:
+    -- Exposed methods:
 
-function console.add_validation_function(validation_function)
-    -- Adds a validation function all chat will be checked against:
-    -- function(string message) which returns (boolean valid, string response)
-    -- If all validation functions return <valid> as true the message will be displayed.
-    -- If one returns <valid> as false then its <response> will be displayed to that player instead.
-    table.insert(console.validation_functions, validation_function)
-end
-
-function console.add_command(command, requires_admin, help_text, command_function, default_parameters)
-    -- Adds a command to the console.
-    -- command_function must take <player> as its first argument, and then any
-    --   subsequent arguments you wish which will be provided by the player.
-    -- You may alias an already-present command by calling this with command_function set to
-    --   the command string instead of a function.  default_parameters can be set for the alias.
-    -- See basic built-in commands at the bottom of this file for examples.
-    local commands = console.commands
-    local command_function = command_function
-    if type(command_function) == 'string' then --alias
-        command_function = commands[command_function].command_function
+    function console.add_validation_function(validation_function)
+        -- Adds a validation function all chat will be checked against:
+        -- function(string message) which returns (boolean valid, string response)
+        -- If all validation functions return <valid> as true the message will be displayed.
+        -- If one returns <valid> as false then its <response> will be displayed to that player instead.
+        table.insert(console.validation_functions, validation_function)
     end
-    console.commands[command] = {command_function=command_function, requires_admin=requires_admin,
-                                 help_text=help_text, default_parameters=default_parameters}
-end
 
-function console.disable()
-    -- Disables console for command purposes, but leaves validation functions running
-    console.active = false
-end
+    function console.add_command(command, requires_admin, help_text, command_function, default_parameters)
+        -- Adds a command to the console.
+        -- command_function must take <player> as its first argument, and then any
+        --   subsequent arguments you wish which will be provided by the player.
+        -- You may alias an already-present command by calling this with command_function set to
+        --   the command string instead of a function.  default_parameters can be set for the alias.
+        -- See basic built-in commands at the bottom of this file for examples.
+        local commands = console.commands
+        local command_function = command_function
+        if type(command_function) == 'string' then --alias
+            command_function = commands[command_function].command_function
+        end
+        console.commands[command] = {command_function=command_function, requires_admin=requires_admin,
+                                     help_text=help_text, default_parameters=default_parameters}
+    end
 
-function console.enable()
-    -- Enables console commands (console commands are on by default)
+    function console.disable()
+        -- Disables console for command purposes, but leaves validation functions running
+        console.active = false
+    end
+
+    function console.enable()
+        -- Enables console commands (console commands are on by default)
+        console.active = true
+    end
+
+    -- End of exposed methods.  You shouldn't need to interact with anything below (under normal circumstances)
+
+
     console.active = true
-end
+    console.in_command_mode = {}
+    console.commands = {}
+    console.validation_functions = {}
 
--- End of exposed methods.  You shouldn't need to interact with anything below (under normal circumstances)
-
-
-console.active = true
-console.in_command_mode = {}
-console.commands = {}
-console.validation_functions = {}
-
-function onChat(message, player)
-    if message ~= '' then
-        local command = ''
-        local command_function = nil
-        local parameters = {player}
-        local requires_admin = false
-        local command_mode = console.in_command_mode[player.steam_id]
-        if command_mode and console.active then
-            command, command_function, parameters, requires_admin = console.get_command(message, player)
-        elseif message:sub(1, 1) == console.command_char and console.active then
-            if message:len() > 1 then
-                command, command_function, parameters, requires_admin = console.get_command(message:sub(2), player)
+    function onChat(message, player)
+        if message ~= '' then
+            local command = ''
+            local command_function = nil
+            local parameters = {player}
+            local requires_admin = false
+            local command_mode = console.in_command_mode[player.steam_id]
+            if command_mode and console.active then
+                command, command_function, parameters, requires_admin = console.get_command(message, player)
+            elseif message:sub(1, 1) == console.command_char and console.active then
+                if message:len() > 1 then
+                    command, command_function, parameters, requires_admin = console.get_command(message:sub(2), player)
+                else
+                    command, command_function, parameters, requires_admin = console.get_command(console.command_char, player)
+                end
             else
-                command, command_function, parameters, requires_admin = console.get_command(console.command_char, player)
+                for i, f in ipairs(console.validation_functions) do
+                    local valid, response = f(message)
+                    if response == nil then response = '' end
+                    if not valid then
+                        printToColor(response, player.color, console.invalid_color)
+                        return false
+                    end
+                end
+                return true
             end
-        else
-            for i, f in ipairs(console.validation_functions) do
-                local valid, response = f(message)
-                if response == nil then response = '' end
-                if not valid then
-                    printToColor(response, player.color, console.invalid_color)
+            if console.active then
+                if command_function and (player.admin or not requires_admin) then
+                    local response, mute = command_function(unpack(parameters))
+                    if response ~= nil or mute ~= nil then
+                        if command_mode then
+                            message = console.command_char .. console.command_char .. message
+                        end
+                        if not mute then
+                            printToColor('\n'..message, player.color, console.command_color)
+                        end
+                        if response then
+                            printToColor(response, player.color, console.output_color)
+                        end
+                    end
+                    if console.in_command_mode[player.steam_id] then console.display_prompt(player) end
+                    return false
+                else
+                    printToColor('\n'..message, player.color, console.command_color)
+                    printToColor(console.error_bb .. "<command '" .. command .. "' not found>[-]", player.color, console.output_color)
                     return false
                 end
             end
-            return true
-        end
-        if console.active then
-            if command_function and (player.admin or not requires_admin) then
-                local response, mute = command_function(unpack(parameters))
-                if response ~= nil or mute ~= nil then
-                    if command_mode then
-                        message = console.command_char .. console.command_char .. message
-                    end
-                    if not mute then
-                        printToColor('\n'..message, player.color, console.command_color)
-                    end
-                    if response then
-                        printToColor(response, player.color, console.output_color)
-                    end
-                end
-                if console.in_command_mode[player.steam_id] then console.display_prompt(player) end
-                return false
-            else
-                printToColor('\n'..message, player.color, console.command_color)
-                printToColor(console.error_bb .. "<command '" .. command .. "' not found>[-]", player.color, console.output_color)
-                return false
-            end
         end
     end
-end
 
-function console.get_command(message, player)
-    local command_name = ''
-    local command_function = nil
-    local requires_admin = false
-    local parameters = {player}
-    for i, part in ipairs(console.split(message)) do
-        if i == 1 then
-            command_name = part
-            local command = console.commands[command_name]
-            if command then
-                command_function = command.command_function
-                requires_admin = command.requires_admin
-                if command.default_parameters then
-                    for _, parameter in ipairs(command.default_parameters) do
-                        table.insert(parameters, parameter)
-                    end
-                end
-            end
-        else
-            table.insert(parameters, part)
-        end
-    end
-    return command_name, command_function, parameters, requires_admin
-end
-
-function console.display_prompt(player)
-    printToColor(console.command_char..console.command_char, player.color, console.prompt_color)
-end
-
-function console.split(text, split_on)
-    local split_on = split_on or ' '
-    if type(split_on) == 'string' then
-        split_on = {[split_on] = true}
-    end
-    local parts = {}
-    if text ~= '' then
-        local make_table = function(s)
-            return console.split(s, {[' '] = true, [','] = true})
-        end
-        local current_split_on = split_on
-        local adding = false
-        local part = ""
-        local totype = tonumber
-        for c = 1, text:len() do
-            local char = text:sub(c, c)
-            if adding then
-                if current_split_on[char] then -- ended current part
-                    if totype(part) ~= nil then
-                        table.insert(parts, totype(part))
-                    else
-                        table.insert(parts, part)
-                    end
-                    adding = false
-                    current_split_on = split_on
-                    totype = tonumber
-                else
-                    part = part .. char
-                end
-            else
-                if not current_split_on[char] then -- found start of part
-                    if char == "'" then
-                        current_split_on = {["'"] = true}
-                        totype = tostring
-                        part = ''
-                    elseif char == '"' then
-                        current_split_on = {['"'] = true}
-                        totype = tostring
-                        part = ''
-                    elseif char == '{' then
-                        current_split_on = {['}'] = true}
-                        totype = make_table
-                        part = ''
-                    else
-                        part = char
-                    end
-                    adding = true
-                end
-            end
-        end
-        if adding then
-            if totype(part) ~= nil then
-                table.insert(parts, totype(part))
-            else
-                table.insert(parts, part)
-            end
-        end
-    end
-    return parts
-end
-
-
--- Add basic built-in console commands
-
-console.add_command('help', false, console.header_bb..'help [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.',
-    function (player, command)
-        if command and console.commands[command] then
-            return console.commands[command].help_text
-        elseif command and command ~= 'all' then
-            return console.error_bb .. "<command '" .. command .. "' not found>[-]"
-        else
-            local msg = console.header_bb .. 'Available commands:[-]'
-            local command_list = {}
-            for c, _ in pairs(console.commands) do
-                if player.admin or not console.commands[c].requires_admin then
-                    if command == 'all' then
-                        table.insert(command_list, console.commands[c].help_text)
-                    else
-                        table.insert(command_list, c)
-                    end
-                end
-            end
-            table.sort(command_list)
-            local sep
-            if command == 'all' then
-                sep = '\n\n'
-            else
-                sep = '\n'
-            end
-            for i, c in ipairs(command_list) do
-                msg = msg .. sep .. c
-                if command ~= 'all' then sep = ', ' end
-            end
-            return msg
-        end
-    end
-)
-console.add_command('?', false, console.header_bb..'? [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.', 'help')
-console.add_command('info', false, console.header_bb..'info[-]\nDisplay help on all available commands.', 'help', {'all'})
-
-console.add_command("exit", false,
-    console.header_bb.."exit[-]\nLeave <command mode> ('" .. console.command_char .. "' does the same).",
-    function (player)
-        console.in_command_mode[player.steam_id] = nil
-        return console.header_bb .. '<command mode: off>[-]'
-    end
-)
-
-console.add_command('cmd', false,
-    console.header_bb.."cmd[-]\nEnter <command mode> ('" .. console.command_char .. "' does the same).",
-    function (player)
-        console.in_command_mode[player.steam_id] = true
-        return console.header_bb .. '<command mode: on>[-]'
-    end
-)
-
-console.add_command(console.command_char, false,
-    console.header_bb..console.command_char..'[-]\nToggle <command mode>',
-    function (player)
-        console.in_command_mode[player.steam_id] = not console.in_command_mode[player.steam_id]
-        if console.in_command_mode[player.steam_id] then
-            return console.header_bb .. '<command mode: on>[-]', true
-        else
-            return console.header_bb .. '<command mode: off>[-]', true
-        end
-    end
-)
-
-console.add_command('alias', false,
-    console.header_bb..'alias <alias> <command> [<parameter>...][-]\nCreate a command alias.',
-    function (player, ...)
-        local alias
-        local command
-        local parameters = {}
-        for i, arg in ipairs({...}) do
+    function console.get_command(message, player)
+        local command_name = ''
+        local command_function = nil
+        local requires_admin = false
+        local parameters = {player}
+        for i, part in ipairs(console.split(message)) do
             if i == 1 then
-                alias = arg
-            elseif i == 2 then
-                command = arg
+                command_name = part
+                local command = console.commands[command_name]
+                if command then
+                    command_function = command.command_function
+                    requires_admin = command.requires_admin
+                    if command.default_parameters then
+                        for _, parameter in ipairs(command.default_parameters) do
+                            table.insert(parameters, parameter)
+                        end
+                    end
+                end
             else
-                table.insert(parameters, arg)
+                table.insert(parameters, part)
             end
         end
-        if not alias then
-            return console.error_bb .. '<must provide an alias>[-]'
-        elseif console.commands[alias] ~= nil then
-            return console.error_bb .. "<command '" .. alias .. "' already exists!>[-]"
-        elseif console.commands[command] == nil then
-            return console.error_bb .. "<command '" .. command .. "' does not exist>[-]"
-        else
-            local text = console.header_bb .. alias .. '[-] = ' .. command
-            local help_text = console.commands[command].help_text .. '\nAliased to: ' .. command
-            for _, parameter in ipairs(parameters) do
-                text = text .. ' ' .. parameter
-                help_text = help_text .. ' ' .. parameter
-            end
-            console.add_command(alias, console.commands[command].requires_admin, help_text, command, parameters)
-            return text
-        end
+        return command_name, command_function, parameters, requires_admin
     end
-)
+
+    function console.display_prompt(player)
+        printToColor(console.command_char..console.command_char, player.color, console.prompt_color)
+    end
+
+    function console.split(text, split_on)
+        local split_on = split_on or ' '
+        if type(split_on) == 'string' then
+            split_on = {[split_on] = true}
+        end
+        local parts = {}
+        if text ~= '' then
+            local make_table = function(s)
+                return console.split(s, {[' '] = true, [','] = true})
+            end
+            local current_split_on = split_on
+            local adding = false
+            local part = ""
+            local totype = tonumber
+            for c = 1, text:len() do
+                local char = text:sub(c, c)
+                if adding then
+                    if current_split_on[char] then -- ended current part
+                        if totype(part) ~= nil then
+                            table.insert(parts, totype(part))
+                        else
+                            table.insert(parts, part)
+                        end
+                        adding = false
+                        current_split_on = split_on
+                        totype = tonumber
+                    else
+                        part = part .. char
+                    end
+                else
+                    if not current_split_on[char] then -- found start of part
+                        if char == "'" then
+                            current_split_on = {["'"] = true}
+                            totype = tostring
+                            part = ''
+                        elseif char == '"' then
+                            current_split_on = {['"'] = true}
+                            totype = tostring
+                            part = ''
+                        elseif char == '{' then
+                            current_split_on = {['}'] = true}
+                            totype = make_table
+                            part = ''
+                        else
+                            part = char
+                        end
+                        adding = true
+                    end
+                end
+            end
+            if adding then
+                if totype(part) ~= nil then
+                    table.insert(parts, totype(part))
+                else
+                    table.insert(parts, part)
+                end
+            end
+        end
+        return parts
+    end
+
+
+    -- Add basic built-in console commands
+
+    console.add_command('help', false, console.header_bb..'help [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.',
+        function (player, command)
+            if command and console.commands[command] then
+                return console.commands[command].help_text
+            elseif command and command ~= 'all' then
+                return console.error_bb .. "<command '" .. command .. "' not found>[-]"
+            else
+                local msg = console.header_bb .. 'Available commands:[-]'
+                local command_list = {}
+                for c, _ in pairs(console.commands) do
+                    if player.admin or not console.commands[c].requires_admin then
+                        if command == 'all' then
+                            table.insert(command_list, console.commands[c].help_text)
+                        else
+                            table.insert(command_list, c)
+                        end
+                    end
+                end
+                table.sort(command_list)
+                local sep
+                if command == 'all' then
+                    sep = '\n\n'
+                else
+                    sep = '\n'
+                end
+                for i, c in ipairs(command_list) do
+                    msg = msg .. sep .. c
+                    if command ~= 'all' then sep = ', ' end
+                end
+                return msg
+            end
+        end
+    )
+    console.add_command('?', false, console.header_bb..'? [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.', 'help')
+    console.add_command('info', false, console.header_bb..'info[-]\nDisplay help on all available commands.', 'help', {'all'})
+
+    console.add_command("exit", false,
+        console.header_bb.."exit[-]\nLeave <command mode> ('" .. console.command_char .. "' does the same).",
+        function (player)
+            console.in_command_mode[player.steam_id] = nil
+            return console.header_bb .. '<command mode: off>[-]'
+        end
+    )
+
+    console.add_command('cmd', false,
+        console.header_bb.."cmd[-]\nEnter <command mode> ('" .. console.command_char .. "' does the same).",
+        function (player)
+            console.in_command_mode[player.steam_id] = true
+            return console.header_bb .. '<command mode: on>[-]'
+        end
+    )
+
+    console.add_command(console.command_char, false,
+        console.header_bb..console.command_char..'[-]\nToggle <command mode>',
+        function (player)
+            console.in_command_mode[player.steam_id] = not console.in_command_mode[player.steam_id]
+            if console.in_command_mode[player.steam_id] then
+                return console.header_bb .. '<command mode: on>[-]', true
+            else
+                return console.header_bb .. '<command mode: off>[-]', true
+            end
+        end
+    )
+
+    console.add_command('alias', false,
+        console.header_bb..'alias <alias> <command> [<parameter>...][-]\nCreate a command alias.',
+        function (player, ...)
+            local alias
+            local command
+            local parameters = {}
+            for i, arg in ipairs({...}) do
+                if i == 1 then
+                    alias = arg
+                elseif i == 2 then
+                    command = arg
+                else
+                    table.insert(parameters, arg)
+                end
+            end
+            if not alias then
+                return console.error_bb .. '<must provide an alias>[-]'
+            elseif console.commands[alias] ~= nil then
+                return console.error_bb .. "<command '" .. alias .. "' already exists!>[-]"
+            elseif console.commands[command] == nil then
+                return console.error_bb .. "<command '" .. command .. "' does not exist>[-]"
+            else
+                local text = console.header_bb .. alias .. '[-] = ' .. command
+                local help_text = console.commands[command].help_text .. '\nAliased to: ' .. command
+                for _, parameter in ipairs(parameters) do
+                    text = text .. ' ' .. parameter
+                    help_text = help_text .. ' ' .. parameter
+                end
+                console.add_command(alias, console.commands[command].requires_admin, help_text, command, parameters)
+                return text
+            end
+        end
+    )
+end
