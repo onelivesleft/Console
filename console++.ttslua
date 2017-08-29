@@ -3,6 +3,7 @@
 console.seperator = '/'
 console.option    = '-'
 console.wildcard  = '*'
+console.indent    = '  '
 console.crop_string_at = 20
 console.table_bb    = '[EEDD88]'
 console.hidden_bb   = '[DDAAAA]'
@@ -184,17 +185,19 @@ console.add_command('cd', true,
 console.add_command('cd..', true, console.header_bb .. 'cd..[-]\nChange current table to parent table.', 'cd', {'..'})
 
 console.add_command('ls', true,
-    console.header_bb .. 'ls [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table',
+    console.header_bb .. 'ls [' .. console.option .. '?fotv] [' .. console.option .. 'r[#]] [<table>][-]\nDisplay variables in current table or specified table',
     function (player, ...)
         local path = console.cd
         local display_functions = false
         local display_objects = false
         local display_variables = false
         local display_tables = false
+        local recursions_left = 0
         for i, arg in ipairs({...}) do
             if arg:sub(1,1) == console.option then
                 if arg:len() > 1 then
-                    for c = 2, arg:len() do
+                    local c = 2
+                    while c <= arg:len() do
                         local option = arg:sub(c,c)
                         if option == 'f' then
                             display_functions = true
@@ -204,11 +207,30 @@ console.add_command('ls', true,
                             display_variables = true
                         elseif option == 't' then
                             display_tables = true
+                        elseif option == 'r' then
+                            local n = ''
+                            local j = c + 1
+                            while j <= arg:len() do
+                                local char = arg:sub(j, j)
+                                if char:match('%d') then
+                                    n = n .. char
+                                else
+                                    break
+                                end
+                                j = j + 1
+                            end
+                            c = j - 1
+                            if n == '' then
+                                recursions_left = -1
+                            else
+                                recursions_left = tonumber(n)
+                            end
                         elseif option == '?' or option == 'h' then
-                            return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables'
+                            return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables\n-r[#] recurse # deep'
                         else
                             return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
                         end
+                        c = c + 1
                     end
                 end
             else
@@ -226,14 +248,16 @@ console.add_command('ls', true,
             display_tables = true
         end
         local location, filter = console.fill_path(path)
-        return console.ls(player, location, filter, display_functions, display_objects, display_variables, display_tables, 0)
+        return console.ls(player, location, filter, display_functions, display_objects, display_variables, display_tables, recursions_left)
     end
 )
 console.add_command('dir', true, console.header_bb .. 'dir [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table', 'ls')
 
-function console.ls(player, path, filter, display_functions, display_objects, display_variables, display_tables, recursions_left)
+function console.ls(player, path, filter, display_functions, display_objects, display_variables, display_tables, recursions_left, indent)
     local text = ''
-    local node, id, parent, found, path, hidden = console.node_from_path(path)
+    local indent = indent or ''
+    local node, id, parent, found, location, hidden = console.node_from_path(path)
+    local paths = {}
     if node ~= nil and (found or hidden) then
         if type(node) == 'table' then
             local tables = {}
@@ -241,7 +265,9 @@ function console.ls(player, path, filter, display_functions, display_objects, di
             for k, v in pairs(node) do
                 if (node ~= _G or (not hidden and not console.is_hidden(k)) or (hidden and hidden[k])) and (filter == nil or k:match(filter)) then
                     if type(v) == 'table' then
-                        table.insert(tables, console.table_bb .. k .. '[-]')
+                        local t = console.table_bb .. k .. '[-]'
+                        table.insert(tables, t)
+                        paths[t] = path .. console.seperator .. k
                     else
                         if type(v) == 'function' then
                             if display_functions then
@@ -304,38 +330,43 @@ function console.ls(player, path, filter, display_functions, display_objects, di
             table.sort(entries, cmp)
             local cr = ''
             if display_tables then
-                for _, table in ipairs(tables) do
-                    text = text .. cr .. table .. console.seperator
+                for i, t in ipairs(tables) do
+                    text = text .. cr .. indent .. t .. console.seperator
+                    if recursions_left ~= 0 then
+                        text = text .. '\n' .. console.ls(player, paths[t], filter,
+                            display_functions, display_objects, display_variables, display_tables,
+                            recursions_left-1, indent..console.indent)
+                    end
                     cr = '\n'
                 end
                 if node == _G and not hidden then
                     for label, _ in pairs(console.hidden_globals) do
                         if (filter == nil or label:match(filter)) then
-                            text = text .. cr .. console.hidden_bb .. label .. '/[-]'
+                            text = text .. cr .. indent .. console.hidden_bb .. label .. '/[-]'
                             cr = '\n'
                         end
                     end
                 end
             end
             for _, entry in ipairs(entries) do
-                text = text .. cr .. entry
+                text = text .. cr .. indent .. entry
                 cr = '\n'
             end
         elseif type(node) == 'userdata' then
-            text = id .. ': ' .. console.value_bb .. node.tag .. ' ' .. node.getGUID() .. '[-]'
+            text = indent .. id .. ': ' .. console.value_bb .. node.tag .. ' ' .. node.getGUID() .. '[-]'
         elseif type(node) == 'function' then
-            text = console.function_bb .. id .. '[-]()'
+            text = indent .. console.function_bb .. id .. '[-]()'
         elseif type(node) == 'boolean' then
             if node then
-                text = id .. ': ' .. console.boolean_bb .. 'true[-]'
+                text = indent .. id .. ': ' .. console.boolean_bb .. 'true[-]'
             else
-                text = id .. ': ' .. console.boolean_bb .. 'false[-]'
+                text = indent .. id .. ': ' .. console.boolean_bb .. 'false[-]'
             end
         else
-            text = id .. ': ' .. console.value_bb .. console.escape_bb(node) .. '[-]'
+            text = indent .. id .. ': ' .. console.value_bb .. console.escape_bb(node) .. '[-]'
         end
     else
-        text = console.error_bb .. '<not found>[-]'
+        text = indent .. console.error_bb .. '<not found>[-]'
     end
     return text
 end
