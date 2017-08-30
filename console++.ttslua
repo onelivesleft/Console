@@ -39,6 +39,37 @@ if not console.plusplus then
         console.hidden_globals[label] = hidden
     end
 
+    function console.update()
+        -- call this function in an onUpdate event to enable the watch list
+        if console.watch_list and not console.watch_list_paused then
+            for variable, watch in pairs(console.watch_list) do
+                if watch.throttle == 0 or watch.last_check + watch.throttle < os.clock() then
+                    watch.last_check = os.clock()
+                    local node, id, parent, found = console.node_from_path(variable)
+                    if node ~= nil and found then
+                        if type(node) == 'userdata' then
+                        elseif type(node) == 'function' then
+                        else
+                            if node ~= watch.value then
+                                watch.value = node
+                                if type(node) == 'boolean' then
+                                    if node then
+                                        node = 'true'
+                                    else
+                                        node = 'false'
+                                    end
+                                elseif type(node) == 'string' then
+                                    if node:len() > console.crop_string_at then node = node:sub(1, console.crop_string_at):gsub('\n', ' ') .. '...' end
+                                end
+                                printToColor(variable .. ': ' .. console.value_bb .. node .. '[-]', watch.player, console.output_color)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     -- End of exposed methods.  You shouldn't need to interact with anything below (under normal circumstances)
 
 
@@ -78,7 +109,6 @@ if not console.plusplus then
         end
         return false
     end
-
     function console.escape_bb(s)
         local s = tostring(s)
         if s == '' then
@@ -146,6 +176,7 @@ if not console.plusplus then
         local depth = 0
         local stack = {}
         local hidden = nil
+        local ends_with_table = {true}
         if path ~= console.seperator then
             for i, part in ipairs(console.split(path, console.seperator)) do
                 if part == '..' then
@@ -153,6 +184,7 @@ if not console.plusplus then
                         node = table.remove(parent)
                         table.remove(id)
                         table.remove(stack)
+                        table.remove(ends_with_table)
                         depth = depth - 1
                     end
                 elseif part == '.' then
@@ -161,6 +193,7 @@ if not console.plusplus then
                     table.insert(parent, node)
                     table.insert(id, part)
                     table.insert(stack, part)
+                    table.insert(ends_with_table, type(node[part]) == 'table')
                     node = node[part]
                     depth = depth + 1
                 elseif node == _G and console.hidden_globals[part] then
@@ -172,9 +205,12 @@ if not console.plusplus then
                 end
             end
         end
-        path = console.seperator
+        path = ''
         for i, part in ipairs(stack) do
-            path = path .. part .. console.seperator
+            path = path .. console.seperator .. part
+        end
+        if table.remove(ends_with_table) then
+            path = path .. console.seperator
         end
         return node, table.remove(id), table.remove(parent), found, path, hidden
     end
@@ -203,8 +239,9 @@ if not console.plusplus then
         'Display variables in current table or specified table',
         function (player, ...)
             local help_details = console.header_bb .. 'Options[-]\n' ..
-                'Show:\n -f functions\n -o objects\n -v variables (defaults to on)\n-t tables (defaults to on)\n\n' ..
-                '-r[#] recurse [# layers if specified]'
+                'Show:\n '..console.option..'f functions\n '..console.option..'o objects\n '..
+                console.option..'v variables (defaults to on)\n '..console.option..'t tables (defaults to on)\n\n' ..
+                console.option..'r[#] recurse [# layers if specified]'
             local path = console.cd
             local display_functions = false
             local display_objects = false
@@ -212,44 +249,42 @@ if not console.plusplus then
             local display_tables = false
             local recursions_left = 0
             for i, arg in ipairs({...}) do
-                if arg:sub(1,1) == console.option then
-                    if arg:len() > 1 then
-                        local c = 2
-                        while c <= arg:len() do
-                            local option = arg:sub(c,c)
-                            if option == 'f' then
-                                display_functions = true
-                            elseif option == 'o' then
-                                display_objects = true
-                            elseif option == 'v' then
-                                display_variables = true
-                            elseif option == 't' then
-                                display_tables = true
-                            elseif option == 'r' then
-                                local n = ''
-                                local j = c + 1
-                                while j <= arg:len() do
-                                    local char = arg:sub(j, j)
-                                    if char:match('%d') then
-                                        n = n .. char
-                                    else
-                                        break
-                                    end
-                                    j = j + 1
-                                end
-                                c = j - 1
-                                if n == '' then
-                                    recursions_left = -1
+                if arg:len() > 1 and arg:sub(1,1) == console.option then
+                    local c = 2
+                    while c <= arg:len() do
+                        local option = arg:sub(c,c)
+                        if option == 'f' then
+                            display_functions = not display_functions
+                        elseif option == 'o' then
+                            display_objects = not display_objects
+                        elseif option == 'v' then
+                            display_variables = not display_variables
+                        elseif option == 't' then
+                            display_tables = not display_tables
+                        elseif option == 'r' then
+                            local n = ''
+                            local j = c + 1
+                            while j <= arg:len() do
+                                local char = arg:sub(j, j)
+                                if char:match('%d') then
+                                    n = n .. char
                                 else
-                                    recursions_left = tonumber(n)
+                                    break
                                 end
-                            elseif option == '?' or option == 'h' then
-                                return help_details
-                            else
-                                return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
+                                j = j + 1
                             end
-                            c = c + 1
+                            c = j - 1
+                            if n == '' then
+                                recursions_left = -1
+                            else
+                                recursions_left = tonumber(n)
+                            end
+                        elseif option == '?' or option == 'h' then
+                            return help_details
+                        else
+                            return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
                         end
+                        c = c + 1
                     end
                 else
                     path = arg
@@ -307,7 +342,7 @@ if not console.plusplus then
                                     table.insert(entries, k .. ': ' .. console.boolean_bb .. v .. '[-]')
                                 else
                                     if type(v) == 'string' then
-                                        if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at) .. '...' end
+                                        if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at):gsub('\n', ' ') .. '...' end
                                     end
                                     table.insert(entries, k .. ': ' .. console.value_bb .. console.escape_bb(v) .. '[-]')
                                 end
@@ -530,6 +565,143 @@ if not console.plusplus then
         end
     )
 
+    console.add_admin_command('watch', '['..console.option..'?cp] [-t#] [<variable>]',
+        'Watch a variable or object and display it whenever it changes.\n' .. console.hidden_bb ..
+        'Requires you to add a '..console.function_bb..'console.update()[-] call to an ' ..
+        console.function_bb .. 'onUpdate[-] event in your code.[-]\n',
+        function (player, ...)
+            local help_details = 'Call without a parameter to display watched items, or with a variable to add it to watch list.\n' ..
+                                console.option..'c will clear variable if specified, or all.\n' ..
+                                console.option..'p will pause or unpause watching.\n' ..
+                                console.option..'t# will throttle output to # seconds.\n'
+            local path = nil
+            local clearing = false
+            local throttle = nil
+            local pause_changed = false
+            for _, arg in ipairs({...}) do
+                if arg:len() > 1 and arg:sub(1,1) == console.option then
+                    local c = 2
+                    while c <= arg:len() do
+                        local option = arg:sub(c,c)
+                        if option == '?' then
+                            return help_details
+                        elseif option == 'c' then
+                            clearing = not clearing
+                        elseif option == 'p' then
+                            pause_changed = not pause_changed
+                        elseif option == 't' then
+                            local n = ''
+                            local j = c + 1
+                            while j <= arg:len() do
+                                local char = arg:sub(j, j)
+                                if char:match('[0-9.]') then
+                                    n = n .. char
+                                else
+                                    break
+                                end
+                                j = j + 1
+                            end
+                            c = j - 1
+                            if n == '' then
+                                return console.error_bb .. '<you must provide a throttle duration (in seconds)>[-]'
+                            else
+                                throttle = tonumber(n)
+                            end
+                        end
+                        c = c + 1
+                    end
+                else
+                    path = console.fill_path(arg)
+                end
+            end
+            local text = ''
+            if pause_changed then
+                if console.watch_list_paused then
+                    console.watch_list_paused = nil
+                    text = text .. console.header_bb .. '<unpaused>[-]'
+                else
+                    console.watch_list_paused = true
+                    text = text .. console.header_bb .. '<paused>[-]'
+                end
+            end
+            if path == nil then
+                if throttle ~= nil then
+                    text = text .. '\n' .. console.error_bb .. '<you must provide a variable or object>[-]'
+                elseif clearing then
+                    console.watch_list = nil
+                    console.watch_list_paused = nil
+                    text = text .. '\nWatch list cleared!'
+                elseif not pause_changed then
+                    if console.watch_list then
+                        local watched = {}
+                        for label, watch in pairs(console.watch_list) do
+                            if watch.player == player.color then
+                                table.insert(watched, label)
+                            end
+                        end
+                        table.sort(watched)
+                        text = text .. '\n'..console.header_bb..'Watching:[-]'
+                        for _, label in ipairs(watched) do
+                            text = text .. '\n' .. console.indent .. label
+                            local node, id, parent, found = console.node_from_path(label)
+                            if node ~= nil and found then
+                                if type(node) == 'userdata' then
+                                elseif type(node) == 'function' then
+                                else
+                                    if type(node) == 'boolean' then
+                                        if node then
+                                            node = 'true'
+                                        else
+                                            node = 'false'
+                                        end
+                                    elseif type(node) == 'string' then
+                                        if node:len() > console.crop_string_at then node = node:sub(1, console.crop_string_at):gsub('\n', ' ') .. '...' end
+                                    end
+                                    text = text .. ': ' .. console.value_bb .. node .. '[-]'
+                                end
+                            end
+                        end
+                    else
+                        text = text .. "\nWatch list is empty."
+                    end
+                end
+            else
+                if clearing then
+                    local node, id, parent, found, path = console.node_from_path(path)
+                    if console.watch_list[path] then
+                        console.watch_list[path] = nil
+                        if next(console.watch_list) == nil then
+                            console.watch_list = nil
+                        end
+                        text = text .. '\n' .. console.header_bb.. 'No longer watching:[-] ' .. path
+                    else
+                        text = text .. '\n' .. console.error_bb .. '<not found>[-]'
+                    end
+                else
+                    local node, id, parent, found, path = console.node_from_path(path)
+                    if node ~= nil and found then
+                        if console.watch_list == nil then console.watch_list = {} end
+                        if throttle == nil then throttle = 0 end
+                        console.watch_list[path] = {player=player.color, throttle=throttle, last_check=0}
+                        if type(node) == 'userdata' then
+                            console.watch_list[path].position = node.getPosition()
+                            console.watch_list[path].rotation = node.getRotation()
+                        elseif type(node) == 'function' then
+                        else
+                            console.watch_list[path].value = node
+                        end
+                        text = text .. '\n' .. console.header_bb .. 'Watching:[-] ' .. path
+                    else
+                        text = text .. '\n' .. console.error_bb .. '<not found>[-]'
+                    end
+                end
+            end
+            if text:len() > 1 and text:sub(1, 1) == '\n' then
+                text = text:sub(2)
+            end
+            return text
+        end
+    )
 
     console.add_player_command('shout', '<text>',
         'Broadcast <text> to all players. Specify colour with {RRGGBB}.',
