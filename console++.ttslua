@@ -3,8 +3,8 @@
 if not console.plusplus then
     console.plusplus = true
 
+    -- Change these values as you wish
     console.seperator = '/'
-    console.option    = '-'
     console.wildcard  = '*'
     console.indent    = '  '
     console.crop_string_at = 20
@@ -16,22 +16,11 @@ if not console.plusplus then
     console.object_bb   = '[CCBBCC]'
     console.guid_bb     = '[BBBBBB]'
 
-    console.cd = console.seperator
-    console.builtin_globals = {}
-    for global, _ in pairs(_G) do console.builtin_globals[global] = true end
-    console.hidden_globals = {}
 
-    console.add_validation_function(function (message)
-        local message = message:lower()
-        for i, bad_word in pairs({'fuck', 'cunt'}) do
-            if message:find(bad_word) then
-                return false, "No swearing!"
-            end
-        end
-        return true
-    end)
+    -- Exposed methods:
 
     function console.hide_globals(label)
+        -- all globals present when you call this will be hidden under <label> (unless built-in or already hidden)
         local hidden = {}
         for global, _ in pairs(_G) do
             if console.builtin_globals[global] == nil then
@@ -49,6 +38,33 @@ if not console.plusplus then
         end
         console.hidden_globals[label] = hidden
     end
+
+    -- End of exposed methods.  You shouldn't need to interact with anything below (under normal circumstances)
+
+
+    -- simple swear-blocking validation
+    console.add_validation_function(function (message)
+        local message = message:lower()
+        for i, bad_word in pairs({'fuck', 'cunt'}) do
+            if message:find(bad_word) then
+                return false, "No swearing!"
+            end
+        end
+        return true
+    end)
+
+    -- override default prompt with one which displays current table
+    function console.display_prompt(player)
+        printToColor(console.cd .. ' ' .. console.command_char..console.command_char, player.color, console.prompt_color)
+    end
+
+
+    -- console++ follows
+
+    console.cd = console.seperator
+    console.builtin_globals = {}
+    for global, _ in pairs(_G) do console.builtin_globals[global] = true end
+    console.hidden_globals = {}
 
     function console.is_hidden(label)
         if console.builtin_globals[label] then
@@ -163,12 +179,8 @@ if not console.plusplus then
         return node, table.remove(id), table.remove(parent), found, path, hidden
     end
 
-    function console.display_prompt(player)
-        printToColor(console.cd .. ' ' .. console.command_char..console.command_char, player.color, console.prompt_color)
-    end
-
-    console.add_command('cd', true,
-        console.header_bb .. 'cd [<table>][-]\nDisplay current table or change current table',
+    console.add_admin_command('cd', '[<table>]',
+        'Display current table or change current table',
         function (player, path)
             if path == nil then
                 return console.cd
@@ -185,11 +197,14 @@ if not console.plusplus then
             return text, false
         end
     )
-    console.add_command('cd..', true, console.header_bb .. 'cd..[-]\nChange current table to parent table.', 'cd', {'..'})
+    console.add_admin_command('cd..', '', 'Change current table to parent table.', 'cd', {'..'})
 
-    console.add_command('ls', true,
-        console.header_bb .. 'ls [' .. console.option .. '?fotv] [' .. console.option .. 'r[#]] [<table>][-]\nDisplay variables in current table or specified table',
+    console.add_admin_command('ls', '[' .. console.option .. '?fotv] [' .. console.option .. 'r[#]] [<table>]',
+        'Display variables in current table or specified table',
         function (player, ...)
+            local help_details = console.header_bb .. 'Options[-]\n' ..
+                'Show:\n -f functions\n -o objects\n -v variables (defaults to on)\n-t tables (defaults to on)\n\n' ..
+                '-r[#] recurse [# layers if specified]'
             local path = console.cd
             local display_functions = false
             local display_objects = false
@@ -229,7 +244,7 @@ if not console.plusplus then
                                     recursions_left = tonumber(n)
                                 end
                             elseif option == '?' or option == 'h' then
-                                return console.header_bb .. 'Options[-]\n-f show functions\n-o show objects\n-v show variables\n-t show only tables\n-r[#] recurse # deep'
+                                return help_details
                             else
                                 return console.error_bb .. "<option '" .. console.option .. option .. "' not recognized>[-]\n"
                             end
@@ -254,7 +269,7 @@ if not console.plusplus then
             return console.ls(player, location, filter, display_functions, display_objects, display_variables, display_tables, recursions_left)
         end
     )
-    console.add_command('dir', true, console.header_bb .. 'dir [' .. console.option .. '?fotv] [<table>][-]\nDisplay variables in current table or specified table', 'ls')
+    console.add_admin_command('dir', nil, nil, 'ls')
 
     function console.ls(player, path, filter, display_functions, display_objects, display_variables, display_tables, recursions_left, indent)
         local text = ''
@@ -374,8 +389,8 @@ if not console.plusplus then
         return text
     end
 
-    console.add_command('call', true,
-        console.header_bb .. 'call <function> [<parameter>...][-]\nCall function with parameters and display result.',
+    console.add_admin_command('call', '<function> [<parameter>...]',
+        'Call function with parameters and display result.',
         function (player, ...)
             local path = nil
             local parameters = {}
@@ -402,8 +417,8 @@ if not console.plusplus then
         end
     )
 
-    console.add_command('set', true,
-        console.header_bb .. "set <variable> [<value>][-]\nSet variable to value.  If no value specified then last value returned from 'call' is used.",
+    console.add_admin_command('set', '<variable> [<value>]',
+        "Set variable to value.  If no value specified then last value returned from 'call' is used.",
         function (player, variable, value)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable and new value>'
@@ -438,8 +453,8 @@ if not console.plusplus then
         end
     )
 
-    console.add_command('toggle', true,
-        console.header_bb .. 'toggle <boolean>[-]\nToggles a boolean variable',
+    console.add_admin_command('toggle', '<boolean>',
+        'Toggle specified boolean variable',
         function (player, variable)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable>'
@@ -465,10 +480,10 @@ if not console.plusplus then
             return text
         end
     )
-    console.add_command('tgl', true, console.header_bb .. 'tgl <boolean>[-]\nToggles a boolean variable', 'toggle')
+    console.add_admin_command('tgl', nil, nil, 'toggle')
 
-    console.add_command('rm', true,
-        console.header_bb .. 'rm <variable>[-]\nRemove variable',
+    console.add_admin_command('rm', '<variable>',
+        'Remove specified variable',
         function (player, variable)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable>'
@@ -485,10 +500,10 @@ if not console.plusplus then
             return text
         end
     )
-    console.add_command('del', true, console.header_bb .. 'del <variable>[-]\nRemove variable', 'rm')
+    console.add_admin_command('del', nil, nil, 'rm')
 
-    console.add_command('add', true,
-        console.header_bb .. "add <variable> [<value>][-]\nCreate a variable set to value.   If no value specified then last value returned from 'call' is used.",
+    console.add_admin_command('add', '<variable> [<value>]',
+        "Create a variable set to value.   If no value specified then last value returned from 'call' is used.",
         function (player, variable, value)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable>[-]'
@@ -516,8 +531,8 @@ if not console.plusplus then
     )
 
 
-    console.add_command('shout', false,
-        console.header_bb .. 'shout <text>[-]\nBroadcast <text> to all players. Specify colour with {RRGGBB}.',
+    console.add_player_command('shout', '<text>',
+        'Broadcast <text> to all players. Specify colour with {RRGGBB}.',
         function (player, ...)
             local text = player.steam_name .. ': '
             local space = ''

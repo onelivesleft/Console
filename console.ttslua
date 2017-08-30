@@ -3,13 +3,15 @@ if not console then
 
     -- Change these values as you wish
     console.command_char = '>'
+    console.option       = '-'
     console.prompt_color  = {r = 0.8,  g = 1.0,  b = 0.8 }
     console.command_color = {r = 0.8,  g = 0.6,  b = 0.8 }
     console.output_color  = {r = 0.88, g = 0.88, b = 0.88}
     console.invalid_color = {r = 1.0,  g = 0.2,  b = 0.2 }
-    console.header_bb     = '[EECCAA]'
-    console.error_bb      = '[FF9999]'
-
+    console.header_bb       = '[EECCAA]'
+    console.error_bb        = '[FF9999]'
+    console.inbuilt_help_bb = '[E0E0E0]'
+    console.client_help_bb  = '[C0E0F0]'
 
     -- Exposed methods:
 
@@ -21,7 +23,17 @@ if not console then
         table.insert(console.validation_functions, validation_function)
     end
 
-    function console.add_command(command, requires_admin, help_text, command_function, default_parameters)
+    function console.add_player_command(command, parameter_text, help_text, command_function, default_parameters)
+        -- Adds a command anyone can use, see below for details
+        console.add_command(command, false, parameter_text, help_text, command_function, default_parameters)
+    end
+
+    function console.add_admin_command(command, parameter_text, help_text, command_function, default_parameters)
+        -- Adds a command only admins can use, see below for details
+        console.add_command(command, true, parameter_text, help_text, command_function, default_parameters)
+    end
+
+    function console.add_command(command, requires_admin, parameter_text, help_text, command_function, default_parameters)
         -- Adds a command to the console.
         -- command_function must take <player> as its first argument, and then any
         --   subsequent arguments you wish which will be provided by the player.
@@ -30,11 +42,30 @@ if not console then
         -- See basic built-in commands at the bottom of this file for examples.
         local commands = console.commands
         local command_function = command_function
+        local help_text = help_text
+        local parameter_text = parameter_text
         if type(command_function) == 'string' then --alias
+            if help_text == nil then
+                help_text = commands[command_function].help_text
+            end
+            if parameter_text == nil then
+                parameter_text = commands[command_function].parameter_text
+            end
             command_function = commands[command_function].command_function
         end
-        console.commands[command] = {command_function=command_function, requires_admin=requires_admin,
-                                     help_text=help_text, default_parameters=default_parameters}
+        console.commands[command] = {
+            command_function   = command_function,
+            requires_admin     = requires_admin,
+            parameter_text     = parameter_text,
+            help_text          = help_text,
+            help_bb            = console.command_help_bb,
+            default_parameters = default_parameters,
+        }
+    end
+
+    function console.set_help_color(bb)
+        -- Tags commands added after with a bb color for when they are displayed (i.e. with 'help')
+        console.command_help_bb = bb
     end
 
     function console.disable()
@@ -54,6 +85,7 @@ if not console then
     console.in_command_mode = {}
     console.commands = {}
     console.validation_functions = {}
+    console.set_help_color(console.inbuilt_help_bb)
 
     function onChat(message, player)
         if message ~= '' then
@@ -138,12 +170,16 @@ if not console then
     function console.split(text, split_on)
         local split_on = split_on or ' '
         if type(split_on) == 'string' then
-            split_on = {[split_on] = true}
+            local s = {}
+            for c = 1, split_on:len() do
+                s[split_on:sub(c,c)] = true
+            end
+            split_on = s
         end
         local parts = {}
         if text ~= '' then
             local make_table = function(s)
-                return console.split(s, {[' '] = true, [','] = true})
+                return console.split(s, ' ,')
             end
             local current_split_on = split_on
             local adding = false
@@ -195,23 +231,32 @@ if not console then
         end
         return parts
     end
-
+    
 
     -- Add basic built-in console commands
 
-    console.add_command('help', false, console.header_bb..'help [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.',
+    console.add_player_command('help', '[' .. console.option .. 'all|<command>]',
+        'Display available commands or help on all commands or help on a specific command.',
         function (player, command)
+            local make_help = function (command)
+                return console.header_bb .. command .. ' ' .. console.commands[command].parameter_text ..
+                        '[-]\n' .. console.commands[command].help_text
+            end
+            local info_mode = false
+            if command == console.option..'all' then
+                info_mode = true
+            end
             if command and console.commands[command] then
-                return console.commands[command].help_text
-            elseif command and command ~= 'all' then
+                return make_help(command)
+            elseif command and not info_mode then
                 return console.error_bb .. "<command '" .. command .. "' not found>[-]"
             else
                 local msg = console.header_bb .. 'Available commands:[-]'
                 local command_list = {}
                 for c, _ in pairs(console.commands) do
                     if player.admin or not console.commands[c].requires_admin then
-                        if command == 'all' then
-                            table.insert(command_list, console.commands[c].help_text)
+                        if info_mode then
+                            table.insert(command_list, make_help(c))
                         else
                             table.insert(command_list, c)
                         end
@@ -219,40 +264,45 @@ if not console then
                 end
                 table.sort(command_list)
                 local sep
-                if command == 'all' then
+                if info_mode then
                     sep = '\n\n'
                 else
                     sep = '\n'
                 end
-                for i, c in ipairs(command_list) do
-                    msg = msg .. sep .. c
-                    if command ~= 'all' then sep = ', ' end
+                for _, c in ipairs(command_list) do
+                    local cmd = console.commands[c]
+                    if cmd then
+                        msg = msg .. sep .. cmd.help_bb .. c .. '[-]'
+                    else
+                        msg = msg .. sep .. c
+                    end
+                    if not info_mode then sep = ', ' end
                 end
                 return msg
             end
         end
     )
-    console.add_command('?', false, console.header_bb..'? [all|<command>][-]\nDisplay available commands or help on all commands or help on a specific command.', 'help')
-    console.add_command('info', false, console.header_bb..'info[-]\nDisplay help on all available commands.', 'help', {'all'})
+    console.add_player_command('?', nil, nil, 'help')
+    console.add_player_command('info', '', 'Display help on all available commands.', 'help', {'all'})
 
-    console.add_command("exit", false,
-        console.header_bb.."exit[-]\nLeave <command mode> ('" .. console.command_char .. "' does the same).",
+    console.add_player_command('exit', '',
+        "Leave <command mode> ('" .. console.command_char .. "' does the same).",
         function (player)
             console.in_command_mode[player.steam_id] = nil
             return console.header_bb .. '<command mode: off>[-]'
         end
     )
 
-    console.add_command('cmd', false,
-        console.header_bb.."cmd[-]\nEnter <command mode> ('" .. console.command_char .. "' does the same).",
+    console.add_player_command('cmd', '',
+        "Enter <command mode> ('" .. console.command_char .. "' does the same).",
         function (player)
             console.in_command_mode[player.steam_id] = true
             return console.header_bb .. '<command mode: on>[-]'
         end
     )
 
-    console.add_command(console.command_char, false,
-        console.header_bb..console.command_char..'[-]\nToggle <command mode>',
+    console.add_player_command(console.command_char, '',
+        'Toggle <command mode>',
         function (player)
             console.in_command_mode[player.steam_id] = not console.in_command_mode[player.steam_id]
             if console.in_command_mode[player.steam_id] then
@@ -263,8 +313,8 @@ if not console then
         end
     )
 
-    console.add_command('alias', false,
-        console.header_bb..'alias <alias> <command> [<parameter>...][-]\nCreate a command alias.',
+    console.add_player_command('alias', '<alias> <command> [<parameter>...]',
+        'Create a command alias.',
         function (player, ...)
             local alias
             local command
@@ -296,4 +346,7 @@ if not console then
             end
         end
     )
+
+    -- change the command help color so client added commands appear different to in-built
+    console.set_help_color(console.client_help_bb)
 end
