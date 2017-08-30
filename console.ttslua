@@ -63,7 +63,7 @@ if not console then
         }
     end
 
-    function console.set_help_color(bb)
+    function console.set_help_bb(bb)
         -- Tags commands added after with a bb color for when they are displayed (i.e. with 'help')
         console.command_help_bb = bb
     end
@@ -85,7 +85,7 @@ if not console then
     console.in_command_mode = {}
     console.commands = {}
     console.validation_functions = {}
-    console.set_help_color(console.inbuilt_help_bb)
+    console.set_help_bb(console.inbuilt_help_bb)
 
     function onChat(message, player)
         if message ~= '' then
@@ -231,7 +231,7 @@ if not console then
         end
         return parts
     end
-    
+
 
     -- Add basic built-in console commands
 
@@ -348,5 +348,5 @@ if not console then
     )
 
     -- change the command help color so client added commands appear different to in-built
-    console.set_help_color(console.client_help_bb)
+    console.set_help_bb(console.client_help_bb)
 end
