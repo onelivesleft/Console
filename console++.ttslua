@@ -45,9 +45,36 @@ if not console.plusplus then
             for variable, watch in pairs(console.watch_list) do
                 if watch.throttle == 0 or watch.last_check + watch.throttle < os.clock() then
                     watch.last_check = os.clock()
-                    local node, id, parent, found = console.node_from_path(variable)
+                    local node, id, parent, found
+                    if watch.is_guid then
+                        node = getObjectFromGUID(variable)
+                        found = tostring(node) ~= 'null'
+                    else
+                        node, id, parent, found = console.node_from_path(variable)
+                    end
                     if node ~= nil and found then
                         if type(node) == 'userdata' then
+                            if tostring(node) ~= 'null' then
+                                local r = function (x)
+                                    return math.floor(x * 100) * 0.01
+                                end
+                                local position = node.getPosition()
+                                local rotation = node.getRotation()
+                                if r(position.x) ~= r(watch.position.x) or r(rotation.x) ~= r(watch.rotation.x) or
+                                   r(position.y) ~= r(watch.position.y) or r(rotation.y) ~= r(watch.rotation.y) or
+                                   r(position.z) ~= r(watch.position.z) or r(rotation.z) ~= r(watch.rotation.z) then
+                                   watch.position = position
+                                   watch.rotation = rotation
+--                                   node = '⊞ x'..r(position.x)..' y'..r(position.y)..' z'..r(position.z)..
+--                                          '  ∡ x'..r(rotation.x)..' y'..r(rotation.y)..' z'..r(rotation.z)
+                                   node = ' ⊞ '..r(position.x)..' '..r(position.y)..' '..r(position.z)..
+                                          console.boolean_bb..' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z)
+                                   if watch.is_guid then
+                                       variable = console.format_guid(variable)
+                                   end
+                                   printToColor(variable .. console.value_bb .. node .. '[-]', watch.player, console.output_color)
+                                end
+                            end
                         elseif type(node) == 'function' then
                         else
                             if node ~= watch.value then
@@ -127,6 +154,10 @@ if not console.plusplus then
             end
             return r
         end
+    end
+
+    function console.format_guid(guid)
+        return console.guid_bb .. '⁅' .. guid .. '⁆[-]'
     end
 
     function console.fill_path(path)
@@ -330,7 +361,7 @@ if not console.plusplus then
                                 if display_objects then
                                     local tag = 'null'
                                     if tostring(v) ~= 'null' then tag = v.tag end
-                                    table.insert(entries, console.object_bb .. k .. '[-]: '  .. tag .. ' ' .. console.guid_bb .. '/' .. v.getGUID() .. '/[-]')
+                                    table.insert(entries, console.object_bb .. k .. '[-]: '  .. tag .. ' ' .. console.format_guid(v.getGUID()))
                                 end
                             elseif display_variables then
                                 if type(v) == 'boolean' then
@@ -565,19 +596,21 @@ if not console.plusplus then
         end
     )
 
-    console.add_admin_command('watch', '['..console.option..'?cp] [-t#] [<variable>]',
+    console.add_admin_command('watch', '['..console.option..'?cgp] [-t#] [<variable>]',
         'Watch a variable or object and display it whenever it changes.\n' .. console.hidden_bb ..
         'Requires you to add a '..console.function_bb..'console.update()[-] call to an ' ..
         console.function_bb .. 'onUpdate[-] event in your code.[-]\n',
         function (player, ...)
             local help_details = 'Call without a parameter to display watched items, or with a variable to add it to watch list.\n' ..
                                 console.option..'c will clear variable if specified, or all.\n' ..
-                                console.option..'p will pause or unpause watching.\n' ..
-                                console.option..'t# will throttle output to # seconds.\n'
+                                console.option..'g will let you specify an object by its GUID.\n' ..
+                                console.option..'t# will throttle output to # seconds.\n' ..
+                                console.option..'p will pause or unpause watching.\n'
             local path = nil
             local clearing = false
             local throttle = nil
             local pause_changed = false
+            local by_guid = false
             for _, arg in ipairs({...}) do
                 if arg:len() > 1 and arg:sub(1,1) == console.option then
                     local c = 2
@@ -589,6 +622,8 @@ if not console.plusplus then
                             clearing = not clearing
                         elseif option == 'p' then
                             pause_changed = not pause_changed
+                        elseif option == 'g' then
+                            by_guid = not by_guid
                         elseif option == 't' then
                             local n = ''
                             local j = c + 1
@@ -611,7 +646,7 @@ if not console.plusplus then
                         c = c + 1
                     end
                 else
-                    path = console.fill_path(arg)
+                    path = arg
                 end
             end
             local text = ''
@@ -627,6 +662,8 @@ if not console.plusplus then
             if path == nil then
                 if throttle ~= nil then
                     text = text .. '\n' .. console.error_bb .. '<you must provide a variable or object>[-]'
+                elseif by_guid then
+                    text = text .. '\n' .. console.error_bb .. '<you must provide a GUID>[-]'
                 elseif clearing then
                     console.watch_list = nil
                     console.watch_list_paused = nil
@@ -642,10 +679,25 @@ if not console.plusplus then
                         table.sort(watched)
                         text = text .. '\n'..console.header_bb..'Watching:[-]'
                         for _, label in ipairs(watched) do
-                            text = text .. '\n' .. console.indent .. label
-                            local node, id, parent, found = console.node_from_path(label)
+                            local is_guid = (label:len() == 6 and label:sub(1,1) ~= console.seperator)
+                            local node, id, parent, found
+                            if is_guid then
+                                text = text .. '\n' .. console.format_guid(label)
+                                node = getObjectFromGUID(label)
+                                found = tostring(node) ~= 'null'
+                            else
+                                text = text .. '\n' .. label
+                                node, id, parent, found = console.node_from_path(label)
+                            end
                             if node ~= nil and found then
                                 if type(node) == 'userdata' then
+                                    local position = node.getPosition()
+                                    local rotation = node.getRotation()
+                                    local r = function (x)
+                                        return math.floor(x * 100) * 0.01
+                                    end
+                                    text = text .. console.value_bb .. ' ⊞ '..r(position.x)..' '..r(position.y)..' '..r(position.z)..
+                                            console.boolean_bb..' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z) .. '[-]'
                                 elseif type(node) == 'function' then
                                 else
                                     if type(node) == 'boolean' then
@@ -666,8 +718,14 @@ if not console.plusplus then
                     end
                 end
             else
+                if not by_guid then
+                    path = console.fill_path(path)
+                end
                 if clearing then
-                    local node, id, parent, found, path = console.node_from_path(path)
+                    local node, id, parent, found
+                    if not by_guid then
+                        node, id, parent, found, path = console.node_from_path(path)
+                    end
                     if console.watch_list[path] then
                         console.watch_list[path] = nil
                         if next(console.watch_list) == nil then
@@ -678,7 +736,13 @@ if not console.plusplus then
                         text = text .. '\n' .. console.error_bb .. '<not found>[-]'
                     end
                 else
-                    local node, id, parent, found, path = console.node_from_path(path)
+                    local node, id, parent, found
+                    if by_guid then
+                        node = getObjectFromGUID(path)
+                        found = tostring(node) ~= 'null'
+                    else
+                        node, id, parent, found, path = console.node_from_path(path)
+                    end
                     if node ~= nil and found then
                         if console.watch_list == nil then console.watch_list = {} end
                         if throttle == nil then throttle = 0 end
@@ -686,9 +750,13 @@ if not console.plusplus then
                         if type(node) == 'userdata' then
                             console.watch_list[path].position = node.getPosition()
                             console.watch_list[path].rotation = node.getRotation()
+                            console.watch_list[path].is_guid  = by_guid
                         elseif type(node) == 'function' then
                         else
                             console.watch_list[path].value = node
+                        end
+                        if by_guid then
+                            path = console.format_guid(path)
                         end
                         text = text .. '\n' .. console.header_bb .. 'Watching:[-] ' .. path
                     else

@@ -35,6 +35,7 @@ Included commands:
 * ```tgl/toggle```  Toggle the boolean variable specified.
 * ```rm/del```      Remove the variable specified.
 * ```call```        Call the function specified.  You may then store the result with ```set``` or ```add```.
+# ```watch```       Watch a variable or object; display it if it changes.
 * ```shout```       Broadcast a message to all players
 
 All commands except ```shout``` are locked to admin players only.
