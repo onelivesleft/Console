@@ -238,7 +238,9 @@ if not console then
     console.add_player_command('help', '[' .. console.option .. 'all|<command>]',
         'Display available commands or help on all commands or help on a specific command.',
         function (player, command)
-            command = tostring(command)
+            if command ~= nil then
+                command = tostring(command)
+            end
             local make_help = function (command)
                 return console.header_bb .. command .. ' ' .. console.commands[command].parameter_text ..
                         '[-]\n' .. console.commands[command].help_text
