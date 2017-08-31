@@ -57,20 +57,19 @@ if not console.plusplus then
                     if node ~= nil and found then
                         if type(node) == 'userdata' then
                             if tostring(node) ~= 'null' then
-                                local r = function (x)
-                                    return math.floor(x * 100) * 0.01
-                                end
+                                local p = function (x) return math.floor(x * 100) * 0.01 end
+                                local r = function (x) return math.floor(x + 0.5) end
                                 local position = node.getPosition()
                                 local rotation = node.getRotation()
-                                if r(position.x) ~= r(watch.position.x) or r(rotation.x) ~= r(watch.rotation.x) or
-                                   r(position.y) ~= r(watch.position.y) or r(rotation.y) ~= r(watch.rotation.y) or
-                                   r(position.z) ~= r(watch.position.z) or r(rotation.z) ~= r(watch.rotation.z) then
+                                if p(position.x) ~= p(watch.position.x) or r(rotation.x) ~= r(watch.rotation.x) or
+                                   p(position.y) ~= p(watch.position.y) or r(rotation.y) ~= r(watch.rotation.y) or
+                                   p(position.z) ~= p(watch.position.z) or r(rotation.z) ~= r(watch.rotation.z) then
                                    watch.position = position
                                    watch.rotation = rotation
 --                                   node = '⊞ x'..r(position.x)..' y'..r(position.y)..' z'..r(position.z)..
 --                                          '  ∡ x'..r(rotation.x)..' y'..r(rotation.y)..' z'..r(rotation.z)
-                                   node = ' ⊞ '..r(position.x)..' '..r(position.y)..' '..r(position.z)..
-                                          console.boolean_bb..' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z)
+                                   node = ' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z) ..
+                                        console.boolean_bb..'   ⊞  '..p(position.x)..'   '..p(position.y)..'   '..p(position.z)
                                    if watch.is_guid then
                                        variable = console.format_guid(variable)
                                    else
@@ -81,10 +80,13 @@ if not console.plusplus then
                             end
                         elseif type(node) == 'function' then
                             local result = node(unpack(watch.parameters))
+                            if type(result) == 'table' and watch.property then
+                                result = result[watch.property]
+                            end
                             if result ~= watch.value then
                                 watch.value = result
                                 result = tostring(result)
-                                if result:len() > console.crop_string_at then results = result:sub(1, console.crop_string_at) .. '...' end
+                                if result:len() > console.crop_string_at then result = result:sub(1, console.crop_string_at) .. '...' end
                                 printToColor(watch.label .. console.value_bb .. result .. '[-]', watch.player, console.output_color)
                             end
                         else
@@ -289,18 +291,19 @@ if not console.plusplus then
     )
     console.add_admin_command('cd..', '', 'Change current table to parent table.', 'cd', {'..'})
 
-    console.add_admin_command('ls', '[' .. console.option .. '?fotv] [' .. console.option .. 'r[#]] [<table>]',
+    console.add_admin_command('ls', '[' .. console.option .. '?afotv] [' .. console.option .. 'r[#]] [<table>]',
         'Display variables in current table or specified table',
         function (player, ...)
             local help_details = console.header_bb .. 'Options[-]\n' ..
                 'Show:\n '..console.option..'f functions\n '..console.option..'o objects\n '..
-                console.option..'v variables (defaults to on)\n '..console.option..'t tables (defaults to on)\n\n' ..
-                console.option..'r[#] recurse [# layers if specified]'
+                console.option..'v variables (defaults to on)\n '..console.option..'t tables (defaults to on)\n '..
+                console.option..'a all\n\n' ..console.option..'r[#] recurse [# layers if specified]'
             local path = console.cd
             local display_functions = false
             local display_objects = false
             local display_variables = false
             local display_tables = false
+            local display_all = false
             local recursions_left = 0
             for i, arg in ipairs({...}) do
                 arg = tostring(arg)
@@ -316,6 +319,8 @@ if not console.plusplus then
                             display_variables = not display_variables
                         elseif option == 't' then
                             display_tables = not display_tables
+                        elseif option == 'a' then
+                            display_all = not display_all
                         elseif option == 'r' then
                             local n = ''
                             local j = c + 1
@@ -349,7 +354,12 @@ if not console.plusplus then
             if display_functions or display_objects or display_variables then
                 display_tables = not display_tables
             end
-            if default_variables then
+            if display_all then
+                display_functions = true
+                display_objects = true
+                display_variables = true
+                display_tables = true
+            elseif default_variables then
                 display_functions = false
                 display_objects = false
                 display_variables = true
@@ -639,7 +649,7 @@ if not console.plusplus then
         end
     )
 
-    console.add_admin_command('watch', '['..console.option..'?cgp] [-t#] [<variable>]',
+    console.add_admin_command('watch', '['..console.option..'?cgp] [-t#] [-'..console.seperator..'<property>] [<variable>]',
         'Watch a variable or object and display it whenever it changes.\n' .. console.hidden_bb ..
         'Requires you to add a '..console.function_bb..'console.update()[-] call to an ' ..
         console.function_bb .. 'onUpdate[-] event in your code.[-]\n',
@@ -648,6 +658,7 @@ if not console.plusplus then
                                 console.option..'c will clear variable if specified, or all.\n' ..
                                 console.option..'g will let you specify an object by its GUID.\n' ..
                                 console.option..'t# will throttle output to # seconds.\n' ..
+                                console.option..console.seperator..'<property> will watch the property of the variable.\n' ..
                                 console.option..'p will pause or unpause watching.\n'
             local path = nil
             local clearing = false
@@ -656,6 +667,7 @@ if not console.plusplus then
             local by_guid = false
             local parameters = {}
             local labels = {}
+            local property = nil
             for _, arg in ipairs({...}) do
                 if type(arg) == 'string' and arg:len() > 1 and arg:sub(1,1) == console.option then
                     local c = 2
@@ -669,6 +681,11 @@ if not console.plusplus then
                             pause_changed = not pause_changed
                         elseif option == 'g' then
                             by_guid = not by_guid
+                        elseif option == console.seperator then
+                            if arg:len() > c then
+                                property = arg:sub(c + 1)
+                                c = arg:len() + 1
+                            end
                         elseif option == 't' then
                             local n = ''
                             local j = c + 1
@@ -687,6 +704,8 @@ if not console.plusplus then
                             else
                                 throttle = tonumber(n)
                             end
+                        else
+                            return console.error_bb .. "<option '" .. option .. "' not recognized>"
                         end
                         c = c + 1
                     end
@@ -755,13 +774,18 @@ if not console.plusplus then
                                 if type(node) == 'userdata' then
                                     local position = node.getPosition()
                                     local rotation = node.getRotation()
-                                    local r = function (x)
-                                        return math.floor(x * 100) * 0.01
-                                    end
-                                    text = text .. console.value_bb .. ' ⊞ '..r(position.x)..' '..r(position.y)..' '..r(position.z)..
-                                            console.boolean_bb..' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z) .. '[-]'
+                                    local p = function (x) return math.floor(x * 100) * 0.01 end
+                                    local r = function (x) return math.floor(x + 0.5) end
+                                    text = text .. console.value_bb .. ' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z) .. '[-]'..
+                                            console.boolean_bb..'   ⊞  '..p(position.x)..'   '..p(position.y)..'   '..p(position.z)
                                 elseif type(node) == 'function' then
-                                    text = text .. ': ' .. console.value_bb .. tostring(node(unpack(console.watch_list[label].parameters))) .. '[-]'
+                                    local result = node(unpack(console.watch_list[label].parameters))
+                                    if type(result) == 'table' and watch.property then
+                                        result = result[watch.property]
+                                    end
+                                    result = tostring(result)
+                                    if result:len() > console.crop_string_at then result = result:sub(1, console.crop_string_at) .. '...' end
+                                    text = text .. ': ' .. console.value_bb .. result .. '[-]'
                                 else
                                     if type(node) == 'boolean' then
                                         if node then
@@ -809,7 +833,7 @@ if not console.plusplus then
                     if node ~= nil and found then
                         if console.watch_list == nil then console.watch_list = {} end
                         if throttle == nil then throttle = 0 end
-                        console.watch_list[path] = {player=player.color, throttle=throttle, last_check=0}
+                        console.watch_list[path] = {player=player.color, throttle=throttle, last_check=0, property=property}
                         if type(node) == 'userdata' then
                             console.watch_list[path].position = node.getPosition()
                             console.watch_list[path].rotation = node.getRotation()
