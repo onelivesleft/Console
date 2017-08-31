@@ -772,7 +772,7 @@ if not console.plusplus then
     )
 
     console.add_player_command('shout', '<text>',
-        'Broadcast <text> to all players. Specify colour with {RRGGBB}.',
+        'Broadcast <text> to all players. Colour a section with {RRGGBB}section{-}.',
         function (player, ...)
             local text = player.steam_name .. ': '
             local space = ''
