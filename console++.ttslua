@@ -574,7 +574,7 @@ if not console.plusplus then
     )
 
     console.add_admin_command('set', '['..console.option..'f] <variable> [<value>]',
-        "Set variable to value.  If no value specified then last value returned from 'call' is used.\n" ..
+        "Set variable to value.  If no value specified then the next value returned from 'call' is used.\n" ..
             console.option ..'f  force overwrite ignoring type',
         function (player, ...)
             local variable = nil
@@ -619,7 +619,7 @@ if not console.plusplus then
                             value = true
                         end
                     end
-                    if type(node) == type(value) then
+                    if type(node) == type(value) or force then
                         parent[id] = value
                         text = id .. ': ' .. console.value_bb .. tostring(parent[id]) .. '[-]'
                     else
@@ -687,7 +687,7 @@ if not console.plusplus then
     console.add_admin_command('del', nil, nil, 'rm')
 
     console.add_admin_command('add', '<variable> [<value>]',
-        "Create a variable set to value.   If no value specified then last value returned from 'call' is used.",
+        "Create a variable set to value.   If no value specified then the next value returned from 'call' is used.",
         function (player, variable, value)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable>[-]'
