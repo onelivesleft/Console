@@ -413,10 +413,18 @@ if not console.plusplus then
                                     end
                                     table.insert(entries, k .. ': ' .. console.boolean_bb .. v .. '[-]')
                                 else
+                                    local is_guid = false
                                     if type(v) == 'string' then
                                         if v:len()> console.crop_string_at then v = v:sub(1, console.crop_string_at):gsub('\n', ' ') .. '...' end
+                                        if type(k) == 'string' and k:lower():find('guid') and v:len() == 6 then
+                                            is_guid = true
+                                        end
                                     end
-                                    table.insert(entries, k .. ': ' .. console.value_bb .. console.escape_bb(v) .. '[-]')
+                                    if is_guid then
+                                        table.insert(entries, k .. ': ' .. console.value_bb .. console.format_guid(v) .. '[-]')
+                                    else
+                                        table.insert(entries, k .. ': ' .. console.value_bb .. console.escape_bb(v) .. '[-]')
+                                    end
                                 end
                             end
                         end
