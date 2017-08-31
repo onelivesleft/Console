@@ -531,6 +531,28 @@ if not console.plusplus then
             if node ~= nil and found and type(node) == 'function' then
                 console.returned_value = node(unpack(parameters))
                 text = tostring(console.returned_value)
+                if console.deferred_assignment then
+                    local da = console.deferred_assignment
+                    if da.command == 'set' then
+                        if da.parent[da.id] ~= nil then
+                            if da.force or type(console.returned_value) == type(da.parent[da.id]) then
+                                da.parent[da.id] = console.returned_value
+                                text = text .. '\n' .. console.header_bb .. "<" .. da.command .. " '" .. da.id .. "'>[-]"
+                            else
+                                text = text .. '\n' .. console.error_bb .. "<cannot set '" .. da.id .. "': it is of type '" .. type(da.parent[da.id]) .. "'>[-]"
+                            end
+                        else
+                            text = text .. '\n' .. console.error_bb .. "<cannot set '" .. da.id .. "': it does not exist>[-]"
+                        end
+                    elseif da.command == 'add' then
+                        if da.parent[da.id] == nil then
+                            da.parent[da.id] = console.returned_value
+                        else
+                            text = text .. '\n' .. "<cannot add '" .. da.id .. "': it already exists>[-]"
+                        end
+                    end
+                    console.deferred_assignment = nil
+                end
             else
                 text = console.error_bb .. '<not found>[-]'
             end
@@ -538,36 +560,55 @@ if not console.plusplus then
         end
     )
 
-    console.add_admin_command('set', '<variable> [<value>]',
-        "Set variable to value.  If no value specified then last value returned from 'call' is used.",
-        function (player, variable, value)
+    console.add_admin_command('set', '['..console.option..'f] <variable> [<value>]',
+        "Set variable to value.  If no value specified then last value returned from 'call' is used.\n" ..
+            console.option ..'f  force overwrite ignoring type',
+        function (player, ...)
+            local variable = nil
+            local value = nil
+            local force = false
+            for _, arg in ipairs({...}) do
+                if type(arg) == 'string' and arg:len() > 1 and arg:sub(1, 1) == console.option then
+                    local c = 2
+                    while c <= arg:len() do
+                        local option = arg:sub(c, c)
+                        if option == "f" then
+                            force = not force
+                        else
+                            return console.error_bb .. "<option '" .. option .. "' not recognized>[-]"
+                        end
+                        c = c + 1
+                    end
+                elseif variable == nil then
+                    variable = tostring(arg)
+                else
+                    value = arg
+                end
+            end
             if variable == nil then
-                return console.error_bb .. '<you must supply variable and new value>'
-            else
-                variable = tostring(variable)
+                return console.error_bb .. '<you must supply a variable>[-]'
             end
-            if value == nil then
-                value = console.returned_value
-            end
-            local variable = console.fill_path(variable)
+            variable = console.fill_path(variable)
             local node, id, parent, found = console.node_from_path(variable)
             local text = ''
             if node ~= nil and found then
-                if type(node) == 'table' then
-                    text = console.error_bb .. '<cannot set table>[-]'
-                elseif type(node) == 'function' then
-                    text = console.error_bb .. '<cannot set function>[-]'
-                elseif type(node) == 'boolean' then
-                    if not value or tostring(value):lower() == 'false' then
-                        parent[id] = false
-                        text = id .. ': ' .. console.value_bb .. 'false[-]'
-                    else
-                        parent[id] = true
-                        text = id .. ': ' .. console.value_bb .. 'true[-]'
-                    end
+                if value == nil then
+                    console.deferred_assignment = {command = 'set', parent = parent, id = id, force = force}
+                    text = id .. ': ' .. console.header_bb .. "<awaiting 'call'>[-]"
                 else
-                    parent[id] = value
-                    text = id .. ': ' .. console.value_bb .. parent[id] .. '[-]'
+                    if type(node) == 'boolean' then
+                        if not value or tostring(value):lower() == 'false' then
+                            value = false
+                        else
+                            value = true
+                        end
+                    end
+                    if type(node) == type(value) then
+                        parent[id] = value
+                        text = id .. ': ' .. console.value_bb .. tostring(parent[id]) .. '[-]'
+                    else
+                        return console.error_bb .. "<cannot set '" .. id .. "': it is of type '" .. type(node) .. "'>[-]"
+                    end
                 end
             else
                 text = console.error_bb .. '<not found>[-]'
