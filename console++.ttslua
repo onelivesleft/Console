@@ -80,8 +80,11 @@ if not console.plusplus then
                             end
                         elseif type(node) == 'function' then
                             local result = node(unpack(watch.parameters))
-                            if type(result) == 'table' and watch.property then
+                            if watch.property and (type(result) == 'table' or type(result) == 'userdata') then
                                 result = result[watch.property]
+                                if type(result) == 'function' then
+                                    result = result()
+                                end
                             end
                             if result ~= watch.value then
                                 watch.value = result
@@ -784,17 +787,19 @@ if not console.plusplus then
                                     text = text .. prefix .. console.value_bb .. ' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z) .. '[-]'..
                                             console.boolean_bb..'   ⊞  '..p(position.x)..'   '..p(position.y)..'   '..p(position.z)
                                 elseif type(node) == 'function' then
-                                    prefix = console.function_bb .. prefix .. '[-]'
                                     local result = node(unpack(console.watch_list[label].parameters))
-                                    if type(result) == 'table' and watch.property then
-                                        prefix = prefix .. console.seperator .. watch.property
+                                    if watch.property and (type(result) == 'table' or type(result) == 'userdata') then
                                         result = result[watch.property]
-                                        if watch.property:lower():find('guid') then is_guid = true end
+                                        if type(result) == 'function' then
+                                            result = result()
+                                        end
                                     end
                                     result = tostring(result)
-                                    if is_guid then result = console.format_guid(result) end
+                                    if watch.propery and watch.property:lower():find('guid') then
+                                        result = console.format_guid(result)
+                                    end
                                     if result:len() > console.crop_string_at then result = result:sub(1, console.crop_string_at) .. '...' end
-                                    text = text .. prefix .. ': ' .. console.value_bb .. result .. '[-]'
+                                    text = text .. watch.label .. console.value_bb .. result .. '[-]'
                                 else
                                     if type(node) == 'boolean' then
                                         if node then
@@ -855,7 +860,7 @@ if not console.plusplus then
                                 console.watch_list[path].label = console.watch_list[path].label .. console.seperator .. property
                             end
                             for _, label in ipairs(labels) do
-                                console.watch_list[path].label = console.watch_list[path].label .. ' ' .. label
+                                console.watch_list[path].label = console.watch_list[path].label .. ' ' .. console.hidden_bb .. label .. '[-]'
                             end
                             console.watch_list[path].label = console.watch_list[path].label .. ': '
                         else
