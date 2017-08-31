@@ -87,6 +87,7 @@ if not console.plusplus then
                                 watch.value = result
                                 result = tostring(result)
                                 if result:len() > console.crop_string_at then result = result:sub(1, console.crop_string_at) .. '...' end
+                                if result:len() == 6 and watch.label:lower():find('guid') then result = console.format_guid(result) end
                                 printToColor(watch.label .. console.value_bb .. result .. '[-]', watch.player, console.output_color)
                             end
                         else
@@ -760,32 +761,40 @@ if not console.plusplus then
                         table.sort(watched)
                         text = text .. '\n'..console.header_bb..'Watching:[-]'
                         for _, label in ipairs(watched) do
+                            local watch = console.watch_list[label]
                             local is_guid = (label:len() == 6 and label:sub(1,1) ~= console.seperator)
                             local node, id, parent, found
+                            local prefix
+                            text = text .. '\n'
                             if is_guid then
-                                text = text .. '\n' .. console.format_guid(label)
+                                prefix =  console.format_guid(label)
                                 node = getObjectFromGUID(label)
                                 found = tostring(node) ~= 'null'
                             else
-                                text = text .. '\n' .. label
+                                prefix = label
                                 node, id, parent, found = console.node_from_path(label)
                             end
                             if node ~= nil and found then
                                 if type(node) == 'userdata' then
+                                    prefix = console.object_bb .. prefix .. '[-]'
                                     local position = node.getPosition()
                                     local rotation = node.getRotation()
                                     local p = function (x) return math.floor(x * 100) * 0.01 end
                                     local r = function (x) return math.floor(x + 0.5) end
-                                    text = text .. console.value_bb .. ' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z) .. '[-]'..
+                                    text = text .. prefix .. console.value_bb .. ' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z) .. '[-]'..
                                             console.boolean_bb..'   ⊞  '..p(position.x)..'   '..p(position.y)..'   '..p(position.z)
                                 elseif type(node) == 'function' then
+                                    prefix = console.function_bb .. prefix .. '[-]'
                                     local result = node(unpack(console.watch_list[label].parameters))
                                     if type(result) == 'table' and watch.property then
+                                        prefix = prefix .. console.seperator .. watch.property
                                         result = result[watch.property]
+                                        if watch.property:lower():find('guid') then is_guid = true end
                                     end
                                     result = tostring(result)
+                                    if is_guid then result = console.format_guid(result) end
                                     if result:len() > console.crop_string_at then result = result:sub(1, console.crop_string_at) .. '...' end
-                                    text = text .. ': ' .. console.value_bb .. result .. '[-]'
+                                    text = text .. prefix .. ': ' .. console.value_bb .. result .. '[-]'
                                 else
                                     if type(node) == 'boolean' then
                                         if node then
@@ -796,7 +805,7 @@ if not console.plusplus then
                                     elseif type(node) == 'string' then
                                         if node:len() > console.crop_string_at then node = node:sub(1, console.crop_string_at):gsub('\n', ' ') .. '...' end
                                     end
-                                    text = text .. ': ' .. console.value_bb .. node .. '[-]'
+                                    text = text .. prefix .. ': ' .. console.value_bb .. node .. '[-]'
                                 end
                             end
                         end
@@ -842,6 +851,9 @@ if not console.plusplus then
                             console.watch_list[path].parameters = parameters
                             console.watch_list[path].value = node
                             console.watch_list[path].label = console.function_bb .. path .. '[-]'
+                            if property then
+                                console.watch_list[path].label = console.watch_list[path].label .. console.seperator .. property
+                            end
                             for _, label in ipairs(labels) do
                                 console.watch_list[path].label = console.watch_list[path].label .. ' ' .. label
                             end
