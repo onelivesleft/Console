@@ -786,4 +786,7 @@ if not console.plusplus then
             return nil, false
         end
     )
+
+    -- change the command help color so client added commands appear different to console++
+    console.set_command_listing_bb('[A0F0C0]')
 end

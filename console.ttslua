@@ -11,7 +11,7 @@ if not console then
     console.header_bb       = '[EECCAA]'
     console.error_bb        = '[FF9999]'
     console.inbuilt_help_bb = '[E0E0E0]'
-    console.client_help_bb  = '[C0E0F0]'
+    console.client_help_bb  = '[C0C0FF]'
 
     -- Exposed methods:
 
@@ -283,7 +283,7 @@ if not console then
         end
     )
     console.add_player_command('?', nil, nil, 'help')
-    console.add_player_command('info', '', 'Display help on all available commands.', 'help', {'all'})
+    console.add_player_command('info', '', 'Display help on all available commands.', 'help', {'-all'})
 
     console.add_player_command('exit', '',
         "Leave <command mode> ('" .. console.command_char .. "' does the same).",
