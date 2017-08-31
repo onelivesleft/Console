@@ -326,6 +326,20 @@ if not console then
         end
     )
 
+    console.add_player_command('=', '<expression>',
+        'Evaluate an expression',
+        function (player, ...)
+            local expression = ''
+            for _, arg in ipairs({...}) do
+                expression = expression .. ' ' .. tostring(arg)
+            end
+            if not player.admin then
+                expression = expression:gasub('[a-zA-Z~]', '')
+            end
+            return dynamic.eval(expression)
+        end
+    )
+
     console.add_player_command('alias', '<alias> <command> [<parameter>...]',
         'Create a command alias.',
         function (player, ...)
