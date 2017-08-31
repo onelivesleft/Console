@@ -18,6 +18,7 @@ Built-in commands:
 * ```cmd```     Enter command mode: no longer required to type '>' before commands
 * ```exit```    Exit command mode
 * ```>```       Type this on its own to toggle command mode
+* ```=```       Evaluates the specified expression
 
 ### console++.ttslua
 ```#include Console/console++```
