@@ -179,7 +179,17 @@ if not console then
         local parts = {}
         if text ~= '' then
             local make_table = function(s)
-                return console.split(s, ' ,')
+                local entries = console.split(s, ' ,')
+                local t = {}
+                for _, entry in ipairs(entries) do
+                    if type(entry) == 'string' and entry:find('=') then
+                        e = console.split(entry, '=')
+                        t[e[1]] = e[2]
+                    else
+                        table.insert(t, entry)
+                    end
+                end
+                return t
             end
             local current_split_on = split_on
             local adding = false
