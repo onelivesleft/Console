@@ -246,11 +246,16 @@ if not console.plusplus then
         return node, table.remove(id), table.remove(parent), found, path, hidden
     end
 
+
+    -- commands
+
     console.add_admin_command('cd', '[<table>]',
         'Display current table or change current table',
         function (player, path)
             if path == nil then
                 return console.cd
+            else
+                path = tostring(path)
             end
             local location = console.fill_path(path)
             local node, id, parent, found, location = console.node_from_path(location)
@@ -280,6 +285,7 @@ if not console.plusplus then
             local display_tables = false
             local recursions_left = 0
             for i, arg in ipairs({...}) do
+                arg = tostring(arg)
                 if arg:len() > 1 and arg:sub(1,1) == console.option then
                     local c = 2
                     while c <= arg:len() do
@@ -462,7 +468,7 @@ if not console.plusplus then
             local parameters = {}
             for i, arg in ipairs({...}) do
                 if i == 1 then
-                    path = arg
+                    path = tostring(arg)
                 else
                     table.insert(parameters, arg)
                 end
@@ -488,6 +494,8 @@ if not console.plusplus then
         function (player, variable, value)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable and new value>'
+            else
+                variable = tostring(variable)
             end
             if value == nil then
                 value = console.returned_value
@@ -524,6 +532,8 @@ if not console.plusplus then
         function (player, variable)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable>'
+            else
+                variable = tostring(variable)
             end
             local variable = console.fill_path(variable)
             local node, id, parent, found = console.node_from_path(variable)
@@ -553,6 +563,8 @@ if not console.plusplus then
         function (player, variable)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable>'
+            else
+                variable = tostring(variable)
             end
             local variable = console.fill_path(variable)
             local node, id, parent, found = console.node_from_path(variable)
@@ -573,6 +585,8 @@ if not console.plusplus then
         function (player, variable, value)
             if variable == nil then
                 return console.error_bb .. '<you must supply variable>[-]'
+            else
+                variable = tostring(variable)
             end
             if value == nil then
                 value = console.returned_value
@@ -612,6 +626,7 @@ if not console.plusplus then
             local pause_changed = false
             local by_guid = false
             for _, arg in ipairs({...}) do
+                arg = tostring(arg)
                 if arg:len() > 1 and arg:sub(1,1) == console.option then
                     local c = 2
                     while c <= arg:len() do
@@ -777,7 +792,7 @@ if not console.plusplus then
             local text = player.steam_name .. ': '
             local space = ''
             for _, word in ipairs({...}) do
-                text = text .. space .. word
+                text = text .. space .. tostring(word)
                 space = ' '
             end
             text = text:gsub('{','[')

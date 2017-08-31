@@ -238,6 +238,7 @@ if not console then
     console.add_player_command('help', '[' .. console.option .. 'all|<command>]',
         'Display available commands or help on all commands or help on a specific command.',
         function (player, command)
+            command = tostring(command)
             local make_help = function (command)
                 return console.header_bb .. command .. ' ' .. console.commands[command].parameter_text ..
                         '[-]\n' .. console.commands[command].help_text
@@ -321,9 +322,9 @@ if not console then
             local parameters = {}
             for i, arg in ipairs({...}) do
                 if i == 1 then
-                    alias = arg
+                    alias = tostring(arg)
                 elseif i == 2 then
-                    command = arg
+                    command = tostring(arg)
                 else
                     table.insert(parameters, arg)
                 end
@@ -341,7 +342,7 @@ if not console then
                     text = text .. ' ' .. parameter
                     help_text = help_text .. ' ' .. parameter
                 end
-                console.add_command(alias, console.commands[command].requires_admin, help_text, command, parameters)
+                console.add_command(alias, console.commands[command].requires_admin, console.commands[command].parameter_text, help_text, command, parameters)
                 return text
             end
         end
