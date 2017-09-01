@@ -20,6 +20,9 @@ if not console.plusplus then
     console.object_bb   = '[CCBBCC]'
     console.guid_bb     = '[BBBBBB]'
 
+    console.autoexec    = ''
+    console.autoexec_options = '-q'
+
     -- Exposed methods:
 
     function console.hide_globals(label)
@@ -50,7 +53,7 @@ if not console.plusplus then
         console.cd = console.seperator
         for _, player in pairs(getSeatedPlayers()) do
             if Player[player].admin then
-                console.commands['exec'].command_function(Player[player], console.seperator..'console'..console.seperator..'autoexec')
+                console.commands['exec'].command_function(Player[player], console.seperator..'console'..console.seperator..'autoexec', console.autoexec_options)
                 break
             end
         end
@@ -81,8 +84,6 @@ if not console.plusplus then
                                    p(position.z) ~= p(watch.position.z) or r(rotation.z) ~= r(watch.rotation.z) then
                                    watch.position = position
                                    watch.rotation = rotation
---                                   node = '⊞ x'..r(position.x)..' y'..r(position.y)..' z'..r(position.z)..
---                                          '  ∡ x'..r(rotation.x)..' y'..r(rotation.y)..' z'..r(rotation.z)
                                    node = ' ∡ '..r(rotation.x)..' '..r(rotation.y)..' '..r(rotation.z) ..
                                         console.boolean_bb..'   ⊞  '..p(position.x)..'   '..p(position.y)..'   '..p(position.z)
                                    if watch.is_guid then
@@ -746,11 +747,35 @@ if not console.plusplus then
         end
     )
 
-    console.add_admin_command('exec', '<commands>',
+    console.add_admin_command('exec', '['..console.option..'?qv] <commands>',
         'Execute a series of commands held in a string: commands are seperated by a new line or '..console.command_seperator,
-        function (player, commands)
-            commands = tostring(commands)
-            if commands:sub(1, 1) == console.literal then
+        function (player, ...)
+            local help_details = console.option..'q    quiet: will not output anything\n' ..
+                                 console.option..'v    verbose: will output commands as they execture\n'
+            local commands = nil
+            local verbose = false
+            local quiet = false
+            for _, arg in ipairs({...}) do
+                if type(arg) == 'string' and arg:len() > 1 and arg:sub(1,1) == console.option then
+                    local c = 2
+                    while c <= arg:len() do
+                        local option = arg:sub(c,c)
+                        if option == '?' then
+                            return help_details
+                        elseif option == 'q' then
+                            quiet = not quiet
+                        elseif option == 'v' then
+                            verbose = not verbose
+                        else
+                            return console.error_bb .. "<option '" .. option .. "' not recognized>"
+                        end
+                        c = c + 1
+                    end
+                elseif commands == nil then
+                    commands = tostring(arg)
+                end
+            end
+            if commands:len() > 1 and commands:sub(1, 1) == console.literal then
                 commands = commands:sub(2)
             else
                 local variable = console.fill_path(commands)
@@ -772,15 +797,15 @@ if not console.plusplus then
                     if command_function and (player.admin or not requires_admin) then
                         local response, mute = command_function(unpack(parameters))
                         if response ~= nil or mute ~= nil then
-                            if not mute then
+                            if not mute and verbose and not quiet then
                                 printToColor('\n'..command_text, player.color, console.command_color)
                             end
-                            if response then
+                            if response and not quiet then
                                 printToColor(response, player.color, console.output_color)
                             end
                         end
-                    else
-                        printToColor('\n'..command_text, player.color, console.command_color)
+                    elseif not quiet then
+                        if verbose then printToColor('\n'..command_text, player.color, console.command_color) end
                         printToColor(console.error_bb .. "<command '" .. command .. "' not found>[-]", player.color, console.output_color)
                     end
                 end
