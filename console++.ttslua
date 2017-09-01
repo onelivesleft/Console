@@ -20,7 +20,6 @@ if not console.plusplus then
     console.object_bb   = '[CCBBCC]'
     console.guid_bb     = '[BBBBBB]'
 
-
     -- Exposed methods:
 
     function console.hide_globals(label)
@@ -43,6 +42,17 @@ if not console.plusplus then
         end
         for _, global in ipairs(hidden) do
             console.hidden_globals[label][global] = true
+        end
+    end
+
+    function console.load()
+        -- call this function in an onLoad event to enable the autoexec
+        console.cd = console.seperator
+        for _, player in pairs(getSeatedPlayers()) do
+            if Player[player].admin then
+                console.commands['exec'].command_function(Player[player], console.seperator..'console'..console.seperator..'autoexec')
+                break
+            end
         end
     end
 
