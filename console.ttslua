@@ -336,7 +336,8 @@ if not console then
             if not player.admin then
                 expression = expression:gasub('[a-zA-Z~]', '')
             end
-            return dynamic.eval(expression)
+            console.returned_value = dynamic.eval(expression)
+            return console.returned_value
         end
     )
 
