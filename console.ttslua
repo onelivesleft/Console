@@ -358,8 +358,8 @@ if not console then
             end
             if not alias then
                 return console.error_bb .. '<must provide an alias>[-]'
-            elseif console.commands[alias] ~= nil then
-                return console.error_bb .. "<command '" .. alias .. "' already exists!>[-]"
+            --elseif console.commands[alias] ~= nil then
+            --    return console.error_bb .. "<command '" .. alias .. "' already exists!>[-]"
             elseif console.commands[command] == nil then
                 return console.error_bb .. "<command '" .. command .. "' does not exist>[-]"
             else
