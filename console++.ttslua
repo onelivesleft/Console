@@ -605,13 +605,22 @@ if not console.plusplus then
             local node, id, parent, found = console.node_from_path(variable)
             local text = ''
             if node ~= nil and found then
-                if value == console.result then
-                    value = console.returned_value
-                end
                 if value == nil then
                     console.deferred_assignment = {command = 'set', parent = parent, id = id, force = force}
                     text = id .. ': ' .. console.header_bb .. "<awaiting 'call'>[-]"
                 else
+                    if type(value) == 'string' and value:len() > 0  then
+                        if value:sub(1, 1) == console.literal then
+                            value = value:sub(2)
+                        else
+                            local value_node, value_id, value_parent, value_found = console.node_from_path(value)
+                            if value_node ~= nil and value_found then
+                                value = value_node
+                            else
+                                return console.error_bb .. '<not found>[-]'
+                            end
+                        end
+                    end
                     if type(node) == 'boolean' then
                         if not value or tostring(value):lower() == 'false' then
                             value = false
@@ -700,17 +709,26 @@ if not console.plusplus then
             if found then
                 return console.error_bb .. '<already exists>[-]'
             elseif node == nil or id == '' then
-                text = console.error_bb .. '<not found>[-]'
+                return console.error_bb .. '<not found>[-]'
             else
-                if value == console.result then
-                    node[id] = console.returned_value
-                    text = id .. " created!"
-                elseif value == nil then
+                if value == nil then
                     console.deferred_assignment = {command = 'add', parent = node, id = id}
                     text = id .. ': ' .. console.header_bb .. "<awaiting 'call'>[-]"
                 else
+                    if type(value) == 'string' and value:len() > 0  then
+                        if value:sub(1, 1) == console.literal then
+                            value = value:sub(2)
+                        else
+                            local value_node, value_id, value_parent, value_found = console.node_from_path(value)
+                            if value_node ~= nil and value_found then
+                                value = value_node
+                            else
+                                return console.error_bb .. '<not found>[-]'
+                            end
+                        end
+                    end
                     node[id] = value
-                    text = id .. " created!"
+                    text = id .. ': ' .. console.value_bb .. tostring(value) .. '[-]'
                 end
             end
             return text
