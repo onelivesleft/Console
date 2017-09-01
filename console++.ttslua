@@ -4,11 +4,12 @@ if not console.plusplus then
     console.plusplus = true
 
     -- Change these values as you wish
-    console.seperator = '/'
-    console.wildcard  = '*'
-    console.literal   = '`'  -- string parameters will be treated as paths where apt unless prefixed with this
-    console.result    = '~'  -- refers to the most recently returned result from a call
-    console.indent    = '  '
+    console.seperator         = '/'
+    console.wildcard          = '*'
+    console.literal           = '`'  -- string parameters will be treated as paths where apt unless prefixed with this
+    console.result            = '~'  -- refers to the most recently returned result from a call
+    console.command_seperator = ';'  -- used in batch files to seperate commands
+    console.indent            = '  '
     console.crop_string_at = 20
     console.builtin_path = 'sys'
     console.table_bb    = '[EEDD88]'
@@ -732,6 +733,48 @@ if not console.plusplus then
                 end
             end
             return text
+        end
+    )
+
+    console.add_admin_command('exec', '<commands>',
+        'Execute a series of commands held in a string: commands are seperated by a new line or '..console.command_seperator,
+        function (player, commands)
+            commands = tostring(commands)
+            if commands:sub(1, 1) == console.literal then
+                commands = commands:sub(2)
+            else
+                local variable = console.fill_path(commands)
+                local node, id, parent, found = console.node_from_path(variable)
+                if node ~= nil and found then
+                    commands = node
+                else
+                    return console.error_bb .. '<not found>[-]'
+                end
+            end
+            commands = console.split(commands, '\n'..console.command_seperator)
+            for _, command_text in ipairs(commands) do
+                local command = ''
+                local command_function = nil
+                local parameters = {player}
+                local requires_admin = false
+                command, command_function, parameters, requires_admin = console.get_command(command_text, player)
+                if command ~= '' then
+                    if command_function and (player.admin or not requires_admin) then
+                        local response, mute = command_function(unpack(parameters))
+                        if response ~= nil or mute ~= nil then
+                            if not mute then
+                                printToColor('\n'..command_text, player.color, console.command_color)
+                            end
+                            if response then
+                                printToColor(response, player.color, console.output_color)
+                            end
+                        end
+                    else
+                        printToColor('\n'..command_text, player.color, console.command_color)
+                        printToColor(console.error_bb .. "<command '" .. command .. "' not found>[-]", player.color, console.output_color)
+                    end
+                end
+            end
         end
     )
 
