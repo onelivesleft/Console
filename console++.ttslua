@@ -21,7 +21,7 @@ if not console.plusplus then
     console.guid_bb     = '[BBBBBB]'
 
     console.autoexec    = ''
-    console.autoexec_options = '-q'
+    console.autoexec_options = '-s'
 
     -- Exposed methods:
 
@@ -499,8 +499,8 @@ if not console.plusplus then
                 end
             elseif type(node) == 'userdata' then
                 local tag = tostring(node)
-                if tag:find('(LuaGameObjectScript)') and not tag:gsub('(LuaGameObjectScript)',''):find('Script ') then
-                    tag = v.tag .. ' ' .. console.format_guid(v.getGUID())
+                if tag ~= 'null' and tag:find('(LuaGameObjectScript)') and not tag:gsub('(LuaGameObjectScript)',''):find('Script ') then
+                    tag = node.tag .. ' ' .. console.format_guid(node.getGUID())
                 end
                 text = indent .. console.object_bb .. id .. '[-]: ' .. tag
             elseif type(node) == 'function' then
@@ -747,14 +747,16 @@ if not console.plusplus then
         end
     )
 
-    console.add_admin_command('exec', '['..console.option..'?qv] <commands>',
+    console.add_admin_command('exec', '['..console.option..'?qsv] <commands>',
         'Execute a series of commands held in a string: commands are seperated by a new line or '..console.command_seperator,
         function (player, ...)
-            local help_details = console.option..'q    quiet: will not output anything\n' ..
+            local help_details = console.option..'q    quiet: will not output anything except final output\n' ..
+                                 console.option..'s    silent: will not output anything at all\n'..
                                  console.option..'v    verbose: will output commands as they execture\n'
             local commands = nil
             local verbose = false
             local quiet = false
+            local silent = false
             for _, arg in ipairs({...}) do
                 if type(arg) == 'string' and arg:len() > 1 and arg:sub(1,1) == console.option then
                     local c = 2
@@ -764,6 +766,8 @@ if not console.plusplus then
                             return help_details
                         elseif option == 'q' then
                             quiet = not quiet
+                        elseif option == 's' then
+                            silent = not silent
                         elseif option == 'v' then
                             verbose = not verbose
                         else
@@ -775,6 +779,7 @@ if not console.plusplus then
                     commands = tostring(arg)
                 end
             end
+            if silent then quiet = true end
             if commands:len() > 1 and commands:sub(1, 1) == console.literal then
                 commands = commands:sub(2)
             else
@@ -787,6 +792,7 @@ if not console.plusplus then
                 end
             end
             commands = console.split(commands, '\n'..console.command_seperator)
+            local end_result = nil
             for _, command_text in ipairs(commands) do
                 local command = ''
                 local command_function = nil
@@ -800,8 +806,11 @@ if not console.plusplus then
                             if not mute and verbose and not quiet then
                                 printToColor('\n'..command_text, player.color, console.command_color)
                             end
-                            if response and not quiet then
-                                printToColor(response, player.color, console.output_color)
+                            if response then
+                            end_result = response
+                                if not quiet then
+                                    printToColor(response, player.color, console.output_color)
+                                end
                             end
                         end
                     elseif not quiet then
@@ -809,6 +818,9 @@ if not console.plusplus then
                         printToColor(console.error_bb .. "<command '" .. command .. "' not found>[-]", player.color, console.output_color)
                     end
                 end
+            end
+            if end_result and not silent then
+                printToColor(end_result, player.color, console.output_color)
             end
         end
     )
