@@ -20,7 +20,7 @@ if not console.plusplus then
     console.object_bb   = '[CCBBCC]'
     console.guid_bb     = '[BBBBBB]'
 
-    console.autoexec    = ''
+    console.autoexec         = ''
     console.autoexec_options = '-s'
 
     -- Exposed methods:
