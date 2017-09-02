@@ -115,11 +115,11 @@ if not console then
             end
             if console.active then
                 if command_function and (player.admin or not requires_admin) then
+                    if command_mode then
+                        message = console.command_char .. console.command_char .. message
+                    end
                     local response, mute = command_function(unpack(parameters))
                     if response ~= nil or mute ~= nil then
-                        if command_mode then
-                            message = console.command_char .. console.command_char .. message
-                        end
                         if not mute then
                             printToColor('\n'..message, player.color, console.command_color)
                         end
@@ -338,6 +338,18 @@ if not console then
             end
             console.returned_value = dynamic.eval(expression)
             return console.returned_value
+        end
+    )
+
+    console.add_player_command('echo', '<text>',
+        'Display text on screen',
+        function (player, ...)
+            local text = ''
+            for _, arg in ipairs({...}) do
+                text = text .. ' ' .. tostring(arg)
+            end
+            printToColor(text, player.color, console.output_color)
+            return false
         end
     )
 
