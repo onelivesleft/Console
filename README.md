@@ -13,7 +13,7 @@ players are sending.
 
 Built-in commands:
 * ```help/?```  Lists available commands or provides information on specified command
-* ```info```    Displays help on all available commands.  Alias for 'help all'
+* ```info```    Displays help on all available commands.  Alias for 'help -all'
 * ```alias```   Creates an alias of another command with preset parameters
 * ```echo```    Display text
 * ```cmd```     Enter command mode: no longer required to type '>' before commands
