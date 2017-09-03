@@ -15,6 +15,7 @@ Built-in commands:
 * ```help/?```  Lists available commands or provides information on specified command
 * ```info```    Displays help on all available commands.  Alias for 'help all'
 * ```alias```   Creates an alias of another command with preset parameters
+* ```echo```    Display text
 * ```cmd```     Enter command mode: no longer required to type '>' before commands
 * ```exit```    Exit command mode
 * ```>```       Type this on its own to toggle command mode
@@ -36,6 +37,7 @@ Included commands:
 * ```tgl/toggle```  Toggle the boolean variable specified.
 * ```rm/del```      Remove the variable specified.
 * ```call```        Call the function specified.  You may then store the result with ```set``` or ```add```.
+* ```exec```        Execute a series of commands.
 * ```watch```       Watch a variable or object; display it if it changes.
 * ```shout```       Broadcast a message to all players
 
