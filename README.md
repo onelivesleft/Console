@@ -41,5 +41,5 @@ Included commands:
 * ```watch```       Watch a variable or object; display it if it changes.
 * ```shout```       Broadcast a message to all players
 
-All commands except ```shout``` are locked to admin players only.
+All commands in console++ except ```shout``` are locked to admin players only.
 Also includes simple swear-word blocking message validation.
