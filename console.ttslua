@@ -353,6 +353,14 @@ if not console then
         end
     )
 
+    console.add_player_command('cls', '',
+        'Clear console text',
+        function (player)
+            return '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n' ..
+                   '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n'
+        end
+    )
+
     console.add_player_command('alias', '<alias> <command> [<parameter>...]',
         'Create a command alias.',
         function (player, ...)
