@@ -1,30 +1,34 @@
 # TTSConsole
 
-A Console module to add textual commands to your games, generally for debugging.  ```console.ttslua``` provides the basics needed to add commands to your games, and ```console++.ttslua``` an example module which adds a full debug system for accessing and monitoring your programs structure.
+A Console module to add textual commands to your games, generally for debugging.  ```console.ttslua``` provides the basics needed to add commands to your games, and ```console++.ttslua``` is an example module which adds a full debug system for accessing and monitoring your programs structure.
 
 
 ### console.ttslua
 
-Console module, allows you to add commands to your games.  Commands are prefixed by a '>' (though
+Console module, allows you to add commands to your games.  Commands are prefixed by a ```>``` (though
 you can change this to w/e you want).  You can also add validation functions to check the messages
 players are sending.  
 
-Built-in commands:
+Built-in console commands:
 * ```help/?```  Lists available commands or provides information on specified command
-* ```info```    Displays help on all available commands.  Alias for 'help -all'
+* ```info```    Displays help on all available commands.  Alias for ```help -all```
 * ```alias```   Creates an alias of another command with preset parameters
 * ```echo```    Display text
 * ```=```       Evaluates the specified expression
-* ```cmd```     Enter command mode: no longer required to type '>' before commands
+* ```cmd```     Enter command mode: no longer required to type ```>``` before commands
 * ```exit```    Exit command mode
 * ```>```       Type this on its own to toggle command mode
+
+Main functions it gives you access to:
+* ```console.add_validation_function``` Adds a validation function all chat will be checked against
+* ```console.add_player_command```      Adds a command any player can use
+* ```console.add_admin_command```       Adds a command only admins can use
 
 
 ### console++.ttslua
 
 Example module demonstrating how to use the base module, though this is a useful debug tool in its own
-right and will become more feature-rich over time.  If you want to use this by copy-pasting it into your
-code then paste it below where you paste console.ttslua, and remove the #include line.
+right and will become more feature-rich over time.  
 
 The runtime envirorment is treated like a filesystem, allowing you to view and access global variables.
 Included commands:
@@ -47,6 +51,6 @@ Also includes simple swear-word blocking message validation.
 
 ### Installation
 
-If you are using ```Atom``` with the TTS plug-in then put ```console.ttslu``` and ```console++.ttslua``` in folder  ```<your user folder>/Documents/Tabletop Simulator/Console```, and then in your code you can simply write ```#include Console/console``` or ```#inclued Console/console++``` (be sure to enable the ```#include``` feature in the package settings).
+If you are using ```Atom``` with the TTS plug-in then put ```console.ttslua``` and ```console++.ttslua``` in folder  ```<your user folder>/Documents/Tabletop Simulator/Console```, and then in your code you can simply write ```#include Console/console``` or ```#include Console/console++``` (be sure to enable the ```#include``` feature in the package settings).
 
 If you're using a different editor then you can simply paste the code for ```console.ttslua``` into your own.  If you want to use ```console++.ttslua``` then paste it below that, and remove the ```#include console``` it starts with.
