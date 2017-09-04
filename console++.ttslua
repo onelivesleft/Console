@@ -622,6 +622,7 @@ if not console.plusplus then
                     console.deferred_assignment = {command = 'set', parent = parent, id = id, force = force}
                     text = id .. ': ' .. console.header_bb .. "<awaiting 'call'>[-]"
                 else
+                    console.deferred_assignment = nil
                     if type(value) == 'string' and value:len() > 0  then
                         if value:sub(1, 1) == console.literal then
                             value = value:sub(2)
@@ -728,6 +729,7 @@ if not console.plusplus then
                     console.deferred_assignment = {command = 'add', parent = node, id = id}
                     text = id .. ': ' .. console.header_bb .. "<awaiting 'call'>[-]"
                 else
+                    console.deferred_assignment = nil
                     if type(value) == 'string' and value:len() > 0  then
                         if value:sub(1, 1) == console.literal then
                             value = value:sub(2)
