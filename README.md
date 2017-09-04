@@ -14,6 +14,7 @@ Built-in console commands:
 * ```info```    Displays help on all available commands.  Alias for ```help -all```
 * ```alias```   Creates an alias of another command with preset parameters
 * ```echo```    Display text
+* ```cls```     Clear console text
 * ```=```       Evaluates the specified expression
 * ```cmd```     Enter command mode: no longer required to type ```>``` before commands
 * ```exit```    Exit command mode
