@@ -51,6 +51,6 @@ Also includes simple swear-word blocking message validation.
 
 ### Installation
 
-If you are using ```Atom``` with the TTS plug-in then put ```console.ttslua``` and ```console++.ttslua``` in folder  ```<your user folder>/Documents/Tabletop Simulator/Console```, and then in your code you can simply write ```#include Console/console``` or ```#include Console/console++``` (be sure to enable the ```#include``` feature in the package settings).
+If you are using Atom with the TTS plug-in then put ```console.ttslua``` and ```console++.ttslua``` in folder  ```<your user folder>/Documents/Tabletop Simulator/Console```, and then in your code you can simply write ```#include Console/console``` or ```#include Console/console++``` (be sure to enable the ```#include``` feature in the package settings).
 
 If you're using a different editor then you can simply paste the code for ```console.ttslua``` into your own.  If you want to use ```console++.ttslua``` then paste it below that, and remove the ```#include console``` it starts with.
