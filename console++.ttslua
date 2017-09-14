@@ -249,8 +249,8 @@ if not console.plusplus then
                         table.remove(ends_with_table)
                         depth = depth - 1
                     end
-                --elseif part == '.' then
-                -- do nothing, . = where we are
+                elseif part == '.' then
+                    ; -- do nothing, . = where we are
                 elseif part == console.result then
                     table.insert(parent, node)
                     table.insert(id, part)
