@@ -353,7 +353,7 @@ if not console.plusplus then
                             end
                             c = j - 1
                             if n == '' then
-                                recursions_left = -1
+                                recursions_left = 20
                             else
                                 recursions_left = tonumber(n)
                             end
