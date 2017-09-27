@@ -1,11 +1,11 @@
 # Console
 
-A Console module to add textual commands to your games, generally for debugging.  ```console.ttslua``` provides the basics needed to add commands to your games, and ```console++.ttslua``` is an example module which adds a full debug system for accessing and monitoring your program's structure.
+A Console module to add textual commands to your Tabletop Simulator mods, generally for debugging.  ```console.ttslua``` provides the basics needed to add commands to your games, and ```console++.ttslua``` is an example module which adds a full debug system for accessing and monitoring your program's structure.
 
 
 ### console.ttslua
 
-Console module, allows you to add commands to your games.  Commands are prefixed by a ```>``` (though
+Console module, allows you to add commands to your Tabletop Simulator mods.  Commands are prefixed by a ```>``` (though
 you can change this to w/e you want).  You can also add validation functions to check the messages
 players are sending.  
 
