@@ -1,6 +1,6 @@
 # Console
 
-A Console module to add textual commands to your games, generally for debugging.  ```console.ttslua``` provides the basics needed to add commands to your games, and ```console++.ttslua``` is an example module which adds a full debug system for accessing and monitoring your programs structure.
+A Console module to add textual commands to your games, generally for debugging.  ```console.ttslua``` provides the basics needed to add commands to your games, and ```console++.ttslua``` is an example module which adds a full debug system for accessing and monitoring your program's structure.
 
 
 ### console.ttslua
