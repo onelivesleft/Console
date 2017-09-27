@@ -49,6 +49,7 @@ Included commands:
 All commands in console++ except ```shout``` are locked to admin players only.
 Also includes simple swear-word blocking message validation.
 
+[Tutorial](http://blog.onelivesleft.com/2017/09/debugging-your-tts-mods-with-console.html)
 
 ### Installation
 
