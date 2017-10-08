@@ -757,7 +757,7 @@ if not console.plusplus then
         function (player, ...)
             local help_details = console.option..'q    quiet: will not output anything except final output\n' ..
                                  console.option..'s    silent: will not output anything at all\n'..
-                                 console.option..'v    verbose: will output commands as they execture\n'
+                                 console.option..'v    verbose: will output commands as they execute\n'
             local commands = nil
             local verbose = false
             local quiet = false
