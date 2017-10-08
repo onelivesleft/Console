@@ -388,7 +388,7 @@ if not console.plusplus then
         end
     )
     console.add_admin_command('dir', nil, nil, 'ls')
-    console.add_admin_command(console.result, '', "Calls 'ls -a ~'", 'ls', {'-a', console.result})
+    console.add_admin_command(console.result, '', "Calls 'ls "..console.option.."a "..console.result.."'", 'ls', {console.option..'a', console.result})
 
     function console.ls(player, path, filter, display_functions, display_objects, display_variables, display_tables, recursions_left, indent)
         local text = ''
