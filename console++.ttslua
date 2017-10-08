@@ -830,7 +830,7 @@ if not console.plusplus then
         end
     )
 
-    console.add_admin_command('watch', '['..console.option..'?cgp] [-t#] [-'..console.seperator..'<property>] [<variable>]',
+    console.add_admin_command('watch', '['..console.option..'?cgp] ['..console.option..'t#] ['..console.option..console.seperator..'<property>] [<variable>]',
         'Watch a variable or object and display it whenever it changes.\n' .. console.hidden_bb ..
         'Requires you to add a '..console.function_bb..'console.update()[-] call to an ' ..
         console.function_bb .. 'onUpdate[-] event in your code.[-]\n',
