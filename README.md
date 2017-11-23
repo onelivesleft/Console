@@ -1,11 +1,11 @@
-# TTSConsole
+# Console
 
-A Console module to add textual commands to your games, generally for debugging.  ```console.ttslua``` provides the basics needed to add commands to your games, and ```console++.ttslua``` is an example module which adds a full debug system for accessing and monitoring your programs structure.
+A Console module to add textual commands to your Tabletop Simulator mods, generally for debugging.  ```console.ttslua``` provides the basics needed to add commands to your games, and ```console++.ttslua``` is an example module which adds a full debug system for accessing and monitoring your program's structure.
 
 
 ### console.ttslua
 
-Console module, allows you to add commands to your games.  Commands are prefixed by a ```>``` (though
+Console module, allows you to add commands to your Tabletop Simulator mods.  Commands are prefixed by a ```>``` (though
 you can change this to w/e you want).  You can also add validation functions to check the messages
 players are sending.  
 
@@ -49,6 +49,7 @@ Included commands:
 All commands in console++ except ```shout``` are locked to admin players only.
 Also includes simple swear-word blocking message validation.
 
+[Tutorial](http://blog.onelivesleft.com/2017/09/debugging-your-tts-mods-with-console.html)
 
 ### Installation
 
