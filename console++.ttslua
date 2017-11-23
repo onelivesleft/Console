@@ -239,7 +239,11 @@ if not console.plusplus then
         local stack = {}
         local hidden = nil
         local ends_with_table = {true}
-        if path ~= console.seperator then
+        if path == 'true' then
+            node = true
+        elseif path == 'false' then
+            node = false
+        elseif path ~= console.seperator then
             for i, part in ipairs(console.split(path, console.seperator)) do
                 if part == '..' then
                     if depth > 0 then
