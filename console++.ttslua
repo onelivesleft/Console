@@ -796,7 +796,11 @@ if not console.plusplus then
                     return console.error_bb .. '<not found>[-]'
                 end
             end
-            commands = console.split(commands, '\n'..console.command_seperator)
+            if commands:find('\n') then
+                commands = console.split(commands, '\n')
+            else
+                commands = console.split(commands, console.command_seperator)
+            end
             local end_result = nil
             for _, command_text in ipairs(commands) do
                 local command = ''
